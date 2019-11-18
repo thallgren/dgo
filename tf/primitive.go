@@ -19,7 +19,7 @@ func String(args ...interface{}) dgo.StringType {
 
 // Pattern returns a StringType that is constrained to strings that match the given
 // regular expression pattern
-func Pattern(pattern *regexp.Regexp) dgo.Type {
+func Pattern(pattern *regexp.Regexp) dgo.Value {
 	return internal.PatternType(pattern)
 }
 
@@ -30,24 +30,24 @@ func CiString(s interface{}) dgo.StringType {
 }
 
 // Enum returns a Type that represents all of the given strings.
-func Enum(strings ...string) dgo.Type {
+func Enum(strings ...string) dgo.Value {
 	return internal.EnumType(strings)
 }
 
 // CiEnum returns a Type that represents all strings that are equal to one of the given strings
 // under Unicode case-folding.
-func CiEnum(strings ...string) dgo.Type {
+func CiEnum(strings ...string) dgo.Value {
 	return internal.CiEnumType(strings)
 }
 
 // IntegerRange returns a dgo.IntegerType that is limited to the inclusive range given by min and max
 // If inclusive is true, then the range has an inclusive end.
 func IntegerRange(min, max int64, inclusive bool) dgo.IntegerType {
-	return internal.IntegerRangeType(min, max, inclusive)
+	return internal.IntegerType(min, max, inclusive)
 }
 
 // IntEnum returns a Type that represents any of the given integers
-func IntEnum(ints ...int) dgo.Type {
+func IntEnum(ints ...int) dgo.Value {
 	return internal.IntEnumType(ints)
 }
 

@@ -15,8 +15,8 @@ import (
 func TestRegexpDefault(t *testing.T) {
 	tp := typ.Regexp
 	r := regexp.MustCompile(`[a-z]+`)
-	require.Instance(t, tp, r)
-	require.NotInstance(t, tp, `r`)
+	require.Assignable(t, tp, r)
+	require.NotAssignable(t, tp, `r`)
 	require.Assignable(t, tp, tp)
 	require.NotAssignable(t, tp, typ.String)
 
@@ -26,19 +26,15 @@ func TestRegexpDefault(t *testing.T) {
 	require.Equal(t, tp.HashCode(), tp.HashCode())
 	require.NotEqual(t, 0, tp.HashCode())
 
-	require.Instance(t, tp.Type(), tp)
-
 	require.Equal(t, `regexp`, tp.String())
 
 	require.True(t, reflect.ValueOf(r).Type().AssignableTo(tp.ReflectType()))
 }
 
 func TestRegexpExact(t *testing.T) {
-	r := vf.Value(regexp.MustCompile(`[a-z]+`))
-	tp := r.Type()
-	require.Instance(t, tp, r)
-	require.NotInstance(t, tp, regexp.MustCompile(`[a-z]*`))
-	require.NotInstance(t, tp, `[a-z]*`)
+	tp := vf.Value(regexp.MustCompile(`[a-z]+`))
+	require.NotAssignable(t, tp, regexp.MustCompile(`[a-z]*`))
+	require.NotAssignable(t, tp, `[a-z]*`)
 	require.Assignable(t, typ.Regexp, tp)
 	require.Assignable(t, tp, tp)
 	require.NotAssignable(t, tp, typ.Regexp)
@@ -49,8 +45,6 @@ func TestRegexpExact(t *testing.T) {
 
 	require.Equal(t, tp.HashCode(), tp.HashCode())
 	require.NotEqual(t, 0, tp.HashCode())
-
-	require.Instance(t, tp.Type(), tp)
 
 	require.Same(t, typ.Regexp, typ.Generic(tp))
 

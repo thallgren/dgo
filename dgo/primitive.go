@@ -20,8 +20,11 @@ type (
 	Value interface {
 		fmt.Stringer
 
-		// Type returns the type of this value
-		Type() Type
+		// Assignable returns true if a variable or parameter of this type can be hold a value of the other type
+		Assignable(other interface{}) bool
+
+		// ReflectType returns the reflect.Type that corresponds to the receiver
+		ReflectType() reflect.Type
 
 		// Equals returns true if this value if equal to the given value. For complex objects, this
 		// comparison is deep.
@@ -29,6 +32,10 @@ type (
 
 		// HashCode returns the computed hash code of the value
 		HashCode() int
+
+		// TypeIdentifier returns a unique identifier for this type. The TypeIdentifier is intended to be used by
+		// decorators providing string representation of the type
+		TypeIdentifier() TypeIdentifier
 	}
 
 	// ReflectedValue is implemented by all values that can be assigned to a reflected value in

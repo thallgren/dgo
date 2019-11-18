@@ -12,8 +12,8 @@ import (
 
 func TestNotType(t *testing.T) {
 	notNil := tf.Not(typ.Nil).(dgo.UnaryType)
-	require.Instance(t, notNil, `b`)
-	require.NotInstance(t, notNil, vf.Nil)
+	require.Assignable(t, notNil, `b`)
+	require.NotAssignable(t, notNil, vf.Nil)
 	require.Same(t, notNil.Operand(), typ.Nil)
 	require.Same(t, tf.Not(tf.Not(typ.Nil)), typ.Nil)
 
@@ -38,8 +38,6 @@ func TestNotType(t *testing.T) {
 	require.NotAssignable(t, tf.Not(typ.Float), tf.AnyOf(tf.Not(typ.String), tf.Not(typ.Integer), tf.Not(typ.Boolean)))
 	require.NotAssignable(t, tf.Not(typ.Float), tf.OneOf(tf.Not(typ.String), tf.Not(typ.Integer), tf.Not(typ.Boolean)))
 	require.NotAssignable(t, tf.Not(typ.Float), tf.AllOf(tf.Not(typ.String), tf.Not(typ.Integer), tf.Not(typ.Boolean)))
-
-	require.Instance(t, notNil.Type(), notNil)
 
 	require.Equal(t, notNil.HashCode(), notNil.HashCode())
 	require.NotEqual(t, 0, notNil.HashCode())

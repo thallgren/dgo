@@ -14,14 +14,13 @@ import (
 )
 
 func TestFloat(t *testing.T) {
-	require.Instance(t, typ.Float, 3.1415927)
-	require.NotInstance(t, typ.Float, true)
+	require.Assignable(t, typ.Float, 3.1415927)
+	require.NotAssignable(t, typ.Float, true)
 	require.Assignable(t, typ.Float, typ.Float)
 	require.Assignable(t, typ.Float, tf.FloatRange(3.1, 5.8, true))
-	require.Assignable(t, typ.Float, vf.Float(4.2).Type())
+	require.Assignable(t, typ.Float, vf.Float(4.2))
 	require.Equal(t, typ.Float, typ.Float)
 	require.Equal(t, typ.Float, tf.FloatRange(-math.MaxFloat64, math.MaxFloat64, true))
-	require.Instance(t, typ.Float.Type(), typ.Float)
 	require.True(t, typ.Float.IsInstance(1234))
 	require.Equal(t, typ.Float.Min(), -math.MaxFloat64)
 	require.Equal(t, typ.Float.Max(), math.MaxFloat64)
@@ -36,10 +35,11 @@ func TestFloat(t *testing.T) {
 }
 
 func TestFloatExact(t *testing.T) {
-	tp := vf.Float(3.1415927).Type().(dgo.FloatRangeType)
-	require.Instance(t, tp, 3.1415927)
-	require.NotInstance(t, tp, 2.05)
-	require.NotInstance(t, tp, true)
+	tp := vf.Float(3.1415927).(dgo.FloatRangeType)
+	require.Assignable(t, tp, tp)
+	require.Assignable(t, tp, 3.1415927)
+	require.NotAssignable(t, tp, 2.05)
+	require.NotAssignable(t, tp, true)
 	require.Assignable(t, tf.FloatRange(3.0, 5.0, true), tp)
 	require.Assignable(t, tp, tf.FloatRange(3.1415927, 3.1415927, true))
 	require.NotAssignable(t, tp, typ.Float)
@@ -50,7 +50,7 @@ func TestFloatExact(t *testing.T) {
 	require.True(t, tp.Inclusive())
 	require.True(t, tp.IsInstance(3.1415927))
 	require.Equal(t, `3.1415927`, tp.String())
-	require.Equal(t, `3.0`, vf.Float(3.0).Type().String())
+	require.Equal(t, `3.0`, vf.Float(3.0).String())
 
 	require.Equal(t, tp.HashCode(), tp.HashCode())
 	require.NotEqual(t, 0, tp.HashCode())
@@ -58,41 +58,38 @@ func TestFloatExact(t *testing.T) {
 	require.Equal(t, `3.1415927`, tp.String())
 
 	require.Same(t, typ.Float, typ.Generic(tp))
-
-	require.Instance(t, tp.Type(), tp)
-
 	require.Same(t, tp.ReflectType(), typ.Float.ReflectType())
 }
 
 func TestFloatRange(t *testing.T) {
 	tp := tf.FloatRange(3.1, 5.8, true)
-	require.Instance(t, tp, 3.1415927)
-	require.NotInstance(t, tp, 3.01)
-	require.NotInstance(t, tp, true)
+	require.Assignable(t, tp, 3.1415927)
+	require.NotAssignable(t, tp, 3.01)
+	require.NotAssignable(t, tp, true)
 	require.Assignable(t, tp, tf.FloatRange(3.1, 5.8, true))
 	require.Assignable(t, tp, tf.FloatRange(4.2, 4.2, true))
-	require.Assignable(t, tp, vf.Float(4.2).Type())
+	require.Assignable(t, tp, vf.Float(4.2))
 	require.NotAssignable(t, tp, tf.FloatRange(2.5, 5.5, true))
 	require.NotAssignable(t, tp, tf.FloatRange(3.1, 6.2, true))
-	require.NotAssignable(t, tp, vf.Float(6.0).Type())
+	require.NotAssignable(t, tp, vf.Float(6.0))
 	require.NotAssignable(t, tp, typ.Float)
 	require.Equal(t, tp, tf.FloatRange(5.8, 3.1, true))
 	require.NotEqual(t, tp, tf.FloatRange(2.5, 5.5, true))
 	require.NotEqual(t, tp, typ.Float)
 	require.Equal(t, tp.Min(), 3.1)
 	require.Equal(t, tp.Max(), 5.8)
-	require.Equal(t, vf.Float(4.2).Type(), tf.FloatRange(4.2, 4.2, true))
+	require.Equal(t, vf.Float(4.2), tf.FloatRange(4.2, 4.2, true))
 
 	require.Equal(t, tp.HashCode(), tp.HashCode())
 	require.NotEqual(t, 0, tp.HashCode())
 
 	require.Equal(t, `3.1..5.8`, tp.String())
 
-	require.Instance(t, tp.Type(), tp)
+	require.Assignable(t, tp, tp)
 
 	tp = tf.FloatRange(3.1, 5.8, false)
-	require.Instance(t, tp, 3.1415927)
-	require.NotInstance(t, tp, 5.8)
+	require.Assignable(t, tp, 3.1415927)
+	require.NotAssignable(t, tp, 5.8)
 	require.Assignable(t, tp, tf.FloatRange(3.1, 5.8, false))
 	require.NotAssignable(t, tp, tf.FloatRange(3.1, 5.8, true))
 	require.Assignable(t, tf.FloatRange(3.1, 5.8, true), tp)
@@ -114,7 +111,7 @@ func TestFloatType_New(t *testing.T) {
 	require.Equal(t, vf.New(typ.Float, vf.Time(now)), vf.New(typ.Float, vf.Arguments(vf.Time(now))))
 
 	require.Panic(t, func() { vf.New(typ.Float, vf.String(`true`)) }, `cannot be converted`)
-	require.Panic(t, func() { vf.New(vf.Float(4).Type(), vf.Float(5)) }, `cannot be assigned`)
+	require.Panic(t, func() { vf.New(vf.Float(4), vf.Float(5)) }, `cannot be assigned`)
 	require.Panic(t, func() { vf.New(tf.FloatRange(1, 4, true), vf.Float(5)) }, `cannot be assigned`)
 }
 

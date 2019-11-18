@@ -14,8 +14,6 @@ type (
 	// regexpType represents an regexp type without constraints
 	regexpType int
 
-	exactRegexpType regexp.Regexp
-
 	regexpVal regexp.Regexp
 )
 
@@ -24,9 +22,9 @@ const DefaultRegexpType = regexpType(0)
 
 var reflectRegexpType = reflect.TypeOf(&regexp.Regexp{})
 
-func (t regexpType) Assignable(ot dgo.Type) bool {
+func (t regexpType) Assignable(ot interface{}) bool {
 	switch ot.(type) {
-	case regexpType, *exactRegexpType:
+	case regexpType, *regexpVal, *regexp.Regexp:
 		return true
 	}
 	return CheckAssignableTo(nil, ot, t)
@@ -40,14 +38,6 @@ func (t regexpType) HashCode() int {
 	return int(dgo.TiRegexp)
 }
 
-func (t regexpType) Instance(v interface{}) bool {
-	_, ok := v.(*regexpVal)
-	if !ok {
-		_, ok = v.(*regexp.Regexp)
-	}
-	return ok
-}
-
 func (t regexpType) ReflectType() reflect.Type {
 	return reflectRegexpType
 }
@@ -56,70 +46,17 @@ func (t regexpType) String() string {
 	return TypeString(t)
 }
 
-func (t regexpType) Type() dgo.Type {
-	return &metaType{t}
-}
-
 func (t regexpType) TypeIdentifier() dgo.TypeIdentifier {
 	return dgo.TiRegexp
-}
-
-func (t *exactRegexpType) Assignable(other dgo.Type) bool {
-	return t.Equals(other)
-}
-
-func (t *exactRegexpType) Equals(other interface{}) bool {
-	if ot, ok := other.(*exactRegexpType); ok {
-		return (*regexp.Regexp)(t).String() == (*regexp.Regexp)(ot).String()
-	}
-	return false
-}
-
-func (t *exactRegexpType) Generic() dgo.Type {
-	return DefaultRegexpType
-}
-
-func (t *exactRegexpType) HashCode() int {
-	return (*regexpVal)(t).HashCode()*31 + int(dgo.TiRegexpExact)
-}
-
-func (t *exactRegexpType) Instance(value interface{}) bool {
-	if ot, ok := value.(*regexpVal); ok {
-		return t.IsInstance((*regexp.Regexp)(ot))
-	}
-	if ot, ok := value.(*regexp.Regexp); ok {
-		return t.IsInstance(ot)
-	}
-	return false
-}
-
-func (t *exactRegexpType) IsInstance(v *regexp.Regexp) bool {
-	return (*regexp.Regexp)(t).String() == v.String()
-}
-
-func (t *exactRegexpType) ReflectType() reflect.Type {
-	return reflectRegexpType
-}
-
-func (t *exactRegexpType) String() string {
-	return TypeString(t)
-}
-
-func (t *exactRegexpType) Type() dgo.Type {
-	return &metaType{t}
-}
-
-func (t *exactRegexpType) TypeIdentifier() dgo.TypeIdentifier {
-	return dgo.TiRegexpExact
-}
-
-func (t *exactRegexpType) Value() dgo.Value {
-	return (*regexpVal)(t)
 }
 
 // Regexp returns the given regexp as a dgo.Regexp
 func Regexp(rx *regexp.Regexp) dgo.Regexp {
 	return (*regexpVal)(rx)
+}
+
+func (v *regexpVal) Assignable(other interface{}) bool {
+	return v.Equals(other) || CheckAssignableTo(nil, other, v)
 }
 
 func (v *regexpVal) GoRegexp() *regexp.Regexp {
@@ -136,8 +73,16 @@ func (v *regexpVal) Equals(other interface{}) bool {
 	return false
 }
 
+func (v *regexpVal) Generic() dgo.Value {
+	return DefaultRegexpType
+}
+
 func (v *regexpVal) HashCode() int {
 	return util.StringHash((*regexp.Regexp)(v).String())
+}
+
+func (v *regexpVal) IsInstance(rx *regexp.Regexp) bool {
+	return (*regexp.Regexp)(v).String() == rx.String()
 }
 
 func (v *regexpVal) ReflectTo(value reflect.Value) {
@@ -153,8 +98,12 @@ func (v *regexpVal) String() string {
 	return (*regexp.Regexp)(v).String()
 }
 
-func (v *regexpVal) Type() dgo.Type {
-	return (*exactRegexpType)(v)
+func (v *regexpVal) ReflectType() reflect.Type {
+	return reflectRegexpType
+}
+
+func (v *regexpVal) TypeIdentifier() dgo.TypeIdentifier {
+	return dgo.TiRegexpExact
 }
 
 // RegexpSlashQuote converts the given string into a slash delimited string with internal slashes escaped

@@ -16,12 +16,20 @@ import (
 
 type testNamed int
 
-func (a testNamed) String() string {
-	return a.Type().(dgo.NamedType).ValueString(a)
+func (a testNamed) Assignable(other interface{}) bool {
+	return tf.ExactNamed(tf.Named(`testNamed`), a).Assignable(other)
 }
 
-func (a testNamed) Type() dgo.Type {
-	return tf.ExactNamed(tf.Named(`testNamed`), a)
+func (a testNamed) ReflectType() reflect.Type {
+	return nil
+}
+
+func (a testNamed) TypeIdentifier() dgo.TypeIdentifier {
+	return dgo.TiNamedExact
+}
+
+func (a testNamed) String() string {
+	return tf.ExactNamed(tf.Named(`testNamed`), a).(dgo.NamedType).ValueString(a)
 }
 
 func (a testNamed) Equals(other interface{}) bool {
@@ -55,8 +63,7 @@ func TestNamedType(t *testing.T) {
 
 	require.Assignable(t, tp, tp)
 	require.NotAssignable(t, tp, typ.Any)
-	require.Instance(t, tp.Type(), tp)
-	require.Instance(t, tp, testNamed(0))
+	require.Assignable(t, tp, testNamed(0))
 
 	require.NotEqual(t, 0, tp.HashCode())
 	require.Equal(t, tp.HashCode(), tp.HashCode())
@@ -127,7 +134,7 @@ func TestNamedType_parse(t *testing.T) {
 	}, func(value dgo.Value) dgo.Value {
 		return vf.Integer(int64(value.(testNamed)))
 	}, reflect.TypeOf(testNamed(0)), nil, nil)
-	require.Same(t, tf.ParseType(`testNamed`), tp)
+	require.Same(t, tf.Parse(`testNamed`), tp)
 }
 
 func TestNamedType_exact(t *testing.T) {
@@ -138,24 +145,17 @@ func TestNamedType_exact(t *testing.T) {
 		return vf.Integer(int64(value.(testNamed)))
 	}, reflect.TypeOf(testNamed(0)), nil, nil)
 
-	v := tp.New(vf.Integer(3))
-	et := v.Type()
+	et := tp.New(vf.Integer(3))
 	require.Same(t, tp, typ.Generic(et))
 	require.Assignable(t, tp, et)
 	require.NotAssignable(t, et, tp)
-	require.NotAssignable(t, et, tp.New(vf.Integer(4)).Type())
-	require.Instance(t, et, v)
-	require.NotInstance(t, et, tp.New(vf.Integer(4)))
+	require.NotAssignable(t, et, tp.New(vf.Integer(4)))
 	require.Equal(t, `testNamed 3`, et.String())
-	require.Equal(t, et, tf.ParseType(`testNamed 3`))
-
-	require.Instance(t, et.Type(), et)
-	require.Instance(t, tp.Type(), et)
-	require.NotInstance(t, et.Type(), tp)
+	require.Equal(t, et, tf.Parse(`testNamed 3`))
 
 	require.NotEqual(t, tp, et)
-	require.Equal(t, et, tp.New(vf.Integer(3)).Type())
+	require.Equal(t, et, tp.New(vf.Integer(3)))
 	require.NotEqual(t, et, tp.New(vf.Integer(3)))
-	require.NotEqual(t, et, tp.New(vf.Integer(4)).Type())
+	require.NotEqual(t, et, tp.New(vf.Integer(4)))
 	require.NotEqual(t, tp.HashCode(), et.HashCode())
 }

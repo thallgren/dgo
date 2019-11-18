@@ -144,13 +144,14 @@ type (
 
 	// MapType is implemented by types representing implementations of the Map value
 	MapType interface {
+		Value
 		SizedType
 
 		// KeyType returns the type of the keys for instances of this type
-		KeyType() Type
+		KeyType() Value
 
 		// ValueType returns the type of the values for instances of this type
-		ValueType() Type
+		ValueType() Value
 	}
 
 	// StructMapType represent a Map with explicitly defined typed entries.

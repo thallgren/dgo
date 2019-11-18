@@ -4,7 +4,6 @@ package typ
 import (
 	"github.com/lyraproj/dgo/dgo"
 	"github.com/lyraproj/dgo/internal"
-	"github.com/lyraproj/dgo/loader"
 )
 
 // AllOf is the default AllOf type. Since it contains no types, everything is
@@ -36,22 +35,22 @@ var Not dgo.UnaryType = internal.DefaultNotType
 var Map dgo.MapType = internal.DefaultMapType
 
 // Any is a type that represents all values
-var Any dgo.Type = internal.DefaultAnyType
+var Any dgo.Value = internal.DefaultAnyType
 
 // Nil is a type that represents the nil Value
-var Nil dgo.Type = internal.DefaultNilType
+var Nil dgo.Value = internal.Nil
 
 // Boolean is a type that represents both true and false
 var Boolean dgo.BooleanType = internal.DefaultBooleanType
 
 // False is a type that only represents the value false
-var False dgo.BooleanType = internal.FalseType
+var False dgo.BooleanType = internal.False
 
 // True is a type that only represents the value true
-var True dgo.BooleanType = internal.TrueType
+var True dgo.BooleanType = internal.True
 
 // Number is a type that represents all numbers
-var Number dgo.Type = internal.AnyOfType([]interface{}{internal.DefaultIntegerType, internal.DefaultFloatType})
+var Number dgo.Value = internal.AnyOfType([]interface{}{internal.DefaultIntegerType, internal.DefaultFloatType})
 
 // Float is a type that represents all floats
 var Float dgo.FloatRangeType = internal.DefaultFloatType
@@ -63,10 +62,10 @@ var Function dgo.FunctionType = internal.DefaultFunctionType
 var Integer dgo.IntegerType = internal.DefaultIntegerType
 
 // Regexp is a type that represents all regexps
-var Regexp dgo.Type = internal.DefaultRegexpType
+var Regexp dgo.Value = internal.DefaultRegexpType
 
 // Time is a type that represents all timestamps
-var Time dgo.Type = internal.DefaultTimeType
+var Time dgo.Value = internal.DefaultTimeType
 
 // Binary is a type that represents all Binary values
 var Binary dgo.BinaryType = internal.DefaultBinaryType
@@ -78,22 +77,13 @@ var String dgo.StringType = internal.DefaultStringType
 var DgoString dgo.StringType = internal.DefaultDgoStringType
 
 // Error is a type that represents all implementation of error
-var Error dgo.Type = internal.DefaultErrorType
+var Error dgo.Value = internal.DefaultErrorType
 
 // Native is a type that represents all Native values
-var Native dgo.Type = internal.DefaultNativeType
+var Native dgo.Value = internal.DefaultNativeType
 
 // Sensitive is a type that represents Sensitive values
 var Sensitive dgo.UnaryType = internal.DefaultSensitiveType
 
 // Type is a type that represents all types
-var Type dgo.Type = internal.DefaultMetaType
-
-// Loader represents all Loaders
-var Loader dgo.Type = loader.Type
-
-// DefiningLoader represents all Loaders capable of defining new entries
-var DefiningLoader dgo.Type = loader.MutableType
-
-// ParentedLoader represents all Loaders capable of defining new entries
-var ParentedLoader dgo.Type = loader.ChildType
+var Type dgo.Value = internal.DefaultAnyType

@@ -20,18 +20,16 @@ import (
 
 func TestBinaryType(t *testing.T) {
 	bs := []byte{1, 2, 3}
-	v := vf.Binary(bs, false)
-	tp := v.Type().(dgo.BinaryType)
+	tp := vf.Binary(bs, false).(dgo.BinaryType)
 	require.Assignable(t, typ.Binary, tp)
 	require.NotAssignable(t, tp, typ.Binary)
 	require.NotAssignable(t, tp, typ.String)
-	require.Instance(t, typ.Binary, bs)
-	require.Instance(t, typ.Binary, v)
-	require.Instance(t, tp, v)
-	require.Instance(t, tp, []byte{1, 2, 3})
-	require.NotInstance(t, tp, []byte{1, 2})
-	require.NotInstance(t, tp, []byte{1, 2})
-	require.NotInstance(t, tf.Binary(1, 5), `abc`)
+	require.Assignable(t, typ.Binary, bs)
+	require.Assignable(t, tp, tp)
+	require.Assignable(t, tp, []byte{1, 2, 3})
+	require.NotAssignable(t, tp, []byte{1, 2})
+	require.NotAssignable(t, tp, []byte{1, 2})
+	require.NotAssignable(t, tf.Binary(1, 5), `abc`)
 
 	require.Assignable(t, tf.Binary(3, 3), tp)
 	require.Assignable(t, tp, tf.Binary(3, 3))
@@ -49,8 +47,6 @@ func TestBinaryType(t *testing.T) {
 	require.Equal(t, tf.Binary(0, 2).HashCode(), tf.Binary(0, 2).HashCode())
 	require.NotEqual(t, tf.Binary(1, 2).HashCode(), tf.Binary(0, 2).HashCode())
 	require.NotEqual(t, tf.Binary(0, 1).HashCode(), tf.Binary(0, 2).HashCode())
-
-	require.Instance(t, tp.Type(), tp)
 
 	require.Panic(t, func() { tf.Binary(`blue`) }, `illegal argument`)
 	require.Panic(t, func() { tf.Binary(`blue`, 1) }, `illegal argument 1`)

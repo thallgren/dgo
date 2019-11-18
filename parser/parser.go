@@ -39,30 +39,26 @@ type optionalValue struct {
 	dgo.Value
 }
 
+type dString dgo.String
 type alias struct {
-	dgo.StringType
+	dString
 }
 
-type dType = dgo.Type // To avoid collision with method named Type
 type deferredCall struct {
-	dType
+	dgo.Value
 	args dgo.Arguments
 }
 
 type LexFunction func(reader *util.StringReader) *Token
 
 // NewAlias creates a special interim type that represents a type alias used during parsing, and then nowhere else.
-func NewAlias(s dgo.String) dgo.Type {
-	return &alias{s.Type().(dgo.StringType)}
+func NewAlias(s dgo.String) dgo.Value {
+	return &alias{s}
 }
 
 // NewCall creates a special interim type that represents a call during parsing, and then nowhere else.
-func NewCall(s dgo.Type, args dgo.Arguments) dgo.Type {
+func NewCall(s dgo.Value, args dgo.Arguments) dgo.Value {
 	return &deferredCall{s, args}
-}
-
-func (a *alias) GoString() string {
-	return a.StringType.(dgo.ExactType).Value().(dgo.String).GoString()
 }
 
 type aliasProvider struct {
@@ -72,7 +68,7 @@ type aliasProvider struct {
 func (p *aliasProvider) Replace(t dgo.Value) dgo.Value {
 	switch t := t.(type) {
 	case *deferredCall:
-		return vf.New(t.dType, t.args)
+		return vf.New(t.Value, t.args)
 	case *alias:
 		if ra := p.sc.GetType(internal.String(t.GoString())); ra != nil {
 			return ra
@@ -250,16 +246,6 @@ func (p *ParserBase) PopLast() dgo.Value {
 	return v
 }
 
-func (p *ParserBase) PopLastType() dgo.Type {
-	last := p.Len() - 1
-	v := p.d[last]
-	p.d = p.d[:last]
-	if tp, ok := v.(dgo.Type); ok {
-		return tp
-	}
-	return v.Type()
-}
-
 func (p *ParserBase) StringReader() *util.StringReader {
 	return p.sr
 }
@@ -297,7 +283,7 @@ func (p *parser) list(endChar int) {
 			expectEntry = 0
 			p.anyOf(t)
 			t = p.NextToken()
-			et := internal.ArrayType([]interface{}{p.PopLastType(), 0, math.MaxInt64})
+			et := internal.ArrayType([]interface{}{p.PopLast(), 0, math.MaxInt64})
 			p.Append(et)
 		}
 
@@ -336,16 +322,8 @@ func (p *parser) list(endChar int) {
 
 func makeTupleType(as []dgo.Value, variadic bool) dgo.TupleType {
 	// Convert literal values to types and create a tupleType
-	ln := len(as)
-	ts := make([]interface{}, ln)
-	for i := range as {
-		v := as[i]
-		t, ok := v.(dgo.Type)
-		if !ok {
-			t = v.Type()
-		}
-		ts[i] = t
-	}
+	ts := allTypes(as)
+	ln := len(ts)
 	if variadic {
 		ln--
 		ts[ln] = ts[ln].(dgo.ArrayType).ElementType()
@@ -359,21 +337,12 @@ func makeStructType(as []dgo.Value, ellipsis bool) dgo.StructMapType {
 	entries := make([]dgo.StructMapEntry, l)
 	for i := range as {
 		hn := as[i].(dgo.MapEntry)
-		k := hn.Key()
-		v := hn.Value()
-		kt, isType := k.(dgo.Type)
-		if !isType {
-			kt = k.Type()
-		}
-		ov, optional := v.(*optionalValue)
+		vt := hn.Value()
+		ov, optional := vt.(*optionalValue)
 		if optional {
-			v = ov.Value
+			vt = ov.Value
 		}
-		vt, isType := v.(dgo.Type)
-		if !isType {
-			vt = v.Type()
-		}
-		entries[i] = internal.StructMapEntry(kt, vt, !optional)
+		entries[i] = internal.StructMapEntry(hn.Key(), vt, !optional)
 	}
 	return internal.StructMapType(ellipsis, entries)
 }
@@ -510,7 +479,7 @@ func (p *parser) unary(t *Token) {
 		}
 	}
 	if negate {
-		nt := internal.NotType(p.PopLastType())
+		nt := internal.NotType(p.PopLast())
 		p.Append(nt)
 	}
 }
@@ -523,7 +492,7 @@ func (p *parser) mapExpression() dgo.Value {
 
 	// Deal with key type and size constraint
 	p.anyOf(p.NextToken())
-	keyType := p.PopLastType()
+	keyType := p.PopLast()
 
 	n = p.NextToken()
 	var szc dgo.Array
@@ -536,27 +505,11 @@ func (p *parser) mapExpression() dgo.Value {
 	}
 
 	p.typeExpression(p.NextToken())
-	params := internal.WrapSlice([]dgo.Value{keyType, p.PopLastType()})
+	params := internal.WrapSlice([]dgo.Value{keyType, p.PopLast()})
 	if szc != nil {
 		params.AddAll(szc)
 	}
 	return internal.MapType(params.InterfaceSlice())
-}
-
-func (p *parser) meta() dgo.Value {
-	if p.PeekToken().Type != '[' {
-		return internal.DefaultMetaType
-	}
-	p.NextToken()
-
-	// Deal with key type and size constraint
-	p.anyOf(p.NextToken())
-	tp := p.PopLastType()
-	t := p.NextToken()
-	if t.Type != ']' {
-		panic(p.badSyntax(t, exRightBracket))
-	}
-	return internal.MetaType(tp)
 }
 
 func (p *parser) string() dgo.Value {
@@ -580,7 +533,7 @@ func (p *parser) sensitive() dgo.Value {
 	}
 	if !isExpressionEnd(rune(tt)) {
 		p.anyOf(p.NextToken())
-		return internal.Sensitive(internal.ExactValue(p.PopLast()))
+		return internal.Sensitive(p.PopLast())
 	}
 	return internal.DefaultSensitiveType
 }
@@ -591,19 +544,19 @@ func (p *parser) funcExpression() dgo.Value {
 		panic(p.badSyntax(t, exLeftParen))
 	}
 	p.list(')')
-	args := p.PopLastType().(dgo.TupleType)
+	args := p.PopLast().(dgo.TupleType)
 	var returns dgo.TupleType = internal.EmptyTupleType
 	t = p.PeekToken()
 	switch {
 	case t.Type == '(':
 		p.NextToken()
 		p.list(')')
-		returns = p.PopLastType().(dgo.TupleType)
+		returns = p.PopLast().(dgo.TupleType)
 	case isExpressionEnd(rune(t.Type)):
 		break
 	default:
 		p.anyOf(p.NextToken())
-		returns = internal.TupleType([]interface{}{p.PopLastType()})
+		returns = internal.TupleType([]interface{}{p.PopLast()})
 	}
 	return internal.FunctionType(args, returns)
 }
@@ -628,8 +581,6 @@ func (p *parser) identifier(t *Token, returnUnknown bool) dgo.Value {
 	switch t.Value {
 	case `map`:
 		tp = p.mapExpression()
-	case `type`:
-		tp = p.meta()
 	case `string`:
 		tp = p.string()
 	case `sensitive`:
@@ -651,7 +602,7 @@ func (p *parser) namedType(t *Token) dgo.Value {
 	if nt, ok := tp.(dgo.NamedType); ok {
 		if !isExpressionEnd(rune(p.PeekToken().Type)) {
 			p.anyOf(p.NextToken())
-			tp = nt.New(internal.ExactValue(p.PopLast()))
+			tp = nt.New(p.PopLast())
 		}
 	}
 	return tp
@@ -689,12 +640,12 @@ func (p *parser) integer(t *Token) dgo.Value {
 		switch x.Type {
 		case integer:
 			p.NextToken()
-			tp = internal.IntegerRangeType(i, tokenInt(x), inclusive)
+			tp = internal.IntegerType(i, tokenInt(x), inclusive)
 		case float:
 			p.NextToken()
 			tp = internal.FloatRangeType(float64(i), tokenFloat(x), inclusive)
 		default:
-			tp = internal.IntegerRangeType(i, math.MaxInt64, inclusive) // Unbounded at upper end
+			tp = internal.IntegerType(i, math.MaxInt64, inclusive) // Unbounded at upper end
 		}
 	} else {
 		tp = internal.Integer(i)
@@ -709,7 +660,7 @@ func (p *parser) dotRange(t *Token) dgo.Value {
 	switch n.Type {
 	case integer:
 		p.NextToken()
-		tp = internal.IntegerRangeType(math.MinInt64, tokenInt(n), inclusive)
+		tp = internal.IntegerType(math.MinInt64, tokenInt(n), inclusive)
 	case float:
 		p.NextToken()
 		tp = internal.FloatRangeType(-math.MaxFloat64, tokenFloat(n), inclusive)
@@ -723,7 +674,7 @@ func (p *parser) array(t *Token) dgo.Value {
 	p.params()
 	params := p.PopLast().(dgo.Array)
 	p.typeExpression(p.NextToken())
-	params.Insert(0, p.PopLastType())
+	params.Insert(0, p.PopLast())
 	return internal.ArrayType(params.InterfaceSlice())
 }
 
@@ -750,8 +701,8 @@ func (p *parser) aliasDeclaration(t *Token) dgo.Value {
 			p.NextToken() // skip '='
 			p.sc.Add(NewAlias(s), s)
 			p.anyOf(p.NextToken())
-			tp = p.PopLastType()
-			p.sc.Add(tp.(dgo.Type), s)
+			tp = p.PopLast()
+			p.sc.Add(tp, s)
 			return tp
 		}
 	}
@@ -814,12 +765,7 @@ func tokenFloat(t *Token) float64 {
 func allTypes(a []dgo.Value) []interface{} {
 	c := make([]interface{}, len(a))
 	for i := range a {
-		v := a[i]
-		if tv, ok := v.(dgo.Type); ok {
-			c[i] = tv
-		} else {
-			c[i] = v.Type()
-		}
+		c[i] = a[i]
 	}
 	return c
 }

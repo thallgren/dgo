@@ -46,7 +46,7 @@ func (i *erpIndenter) AppendValue(v interface{}) {
 				i.Append(`<recursive self reference`)
 				if dv, ok := v.(dgo.Value); ok {
 					i.Append(` to `)
-					i.Append(dv.Type().TypeIdentifier().String())
+					i.Append(dv.TypeIdentifier().String())
 				}
 				i.AppendRune('>')
 				return

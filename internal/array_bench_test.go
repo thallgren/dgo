@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/lyraproj/dgo/dgo"
@@ -70,6 +71,18 @@ func (h *hsDp) deepCompare(seen []dgo.Value, other deepCompare) (int, bool) {
 
 type dummyDp int
 
+func (d dummyDp) Assignable(other interface{}) bool {
+	return true
+}
+
+func (d dummyDp) ReflectType() reflect.Type {
+	return nil
+}
+
+func (d dummyDp) TypeIdentifier() dgo.TypeIdentifier {
+	return 0
+}
+
 func (d dummyDp) deepEqual(seen []dgo.Value, other deepEqual) bool {
 	return true
 }
@@ -80,10 +93,6 @@ func (d dummyDp) deepHashCode(seen []dgo.Value) int {
 
 func (d dummyDp) String() string {
 	return ``
-}
-
-func (d dummyDp) Type() dgo.Type {
-	return nil
 }
 
 func (d dummyDp) Equals(other interface{}) bool {

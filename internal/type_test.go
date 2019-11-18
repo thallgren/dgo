@@ -33,5 +33,5 @@ func TestFromReflected(t *testing.T) {
 func TestGeneric(t *testing.T) {
 	require.Same(t, typ.Generic(typ.String), typ.String)
 	require.NotEqual(t, typ.Generic(typ.String), tf.String(10))
-	require.Same(t, typ.String, typ.Generic(vf.String(`hello`).Type()))
+	require.Same(t, typ.String, typ.Generic(vf.String(`hello`)))
 }

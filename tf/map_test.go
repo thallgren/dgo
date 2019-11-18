@@ -10,8 +10,8 @@ import (
 
 func ExampleMap_min() {
 	tp := tf.Map(1)
-	fmt.Println(tp.Instance(vf.Map(`a`, 42)))
-	fmt.Println(tp.Instance(vf.Map()))
+	fmt.Println(tp.Assignable(vf.Map(`a`, 42)))
+	fmt.Println(tp.Assignable(vf.Map()))
 	// Output:
 	// true
 	// false
@@ -19,8 +19,8 @@ func ExampleMap_min() {
 
 func ExampleMap_min_max() {
 	tp := tf.Map(1, 2)
-	fmt.Println(tp.Instance(vf.Map(`a`, 42, `b`, 84)))
-	fmt.Println(tp.Instance(vf.Map(`a`, 42, `b`, 84, `c`, 126)))
+	fmt.Println(tp.Assignable(vf.Map(`a`, 42, `b`, 84)))
+	fmt.Println(tp.Assignable(vf.Map(`a`, 42, `b`, 84, `c`, 126)))
 	// Output:
 	// true
 	// false
@@ -28,8 +28,8 @@ func ExampleMap_min_max() {
 
 func ExampleMap_type_min() {
 	tp := tf.Map(typ.String, typ.String, 2)
-	fmt.Println(tp.Instance(vf.Map(`hello`, `word`, `hi`, `earth`)))
-	fmt.Println(tp.Instance(vf.Map(`hello`, `word`)))
+	fmt.Println(tp.Assignable(vf.Map(`hello`, `word`, `hi`, `earth`)))
+	fmt.Println(tp.Assignable(vf.Map(`hello`, `word`)))
 	// Output:
 	// true
 	// false
@@ -37,8 +37,8 @@ func ExampleMap_type_min() {
 
 func ExampleMap_type_min_max() {
 	tp := tf.Map(typ.String, typ.String, 2, 3)
-	fmt.Println(tp.Instance(vf.Map(`hello`, `word`, `hi`, `earth`, `good day`, `sunshine`)))
-	fmt.Println(tp.Instance(vf.Map(`hello`, `word`, `hi`, `earth`, `good day`, `sunshine`, `howdy`, `galaxy`)))
+	fmt.Println(tp.Assignable(vf.Map(`hello`, `word`, `hi`, `earth`, `good day`, `sunshine`)))
+	fmt.Println(tp.Assignable(vf.Map(`hello`, `word`, `hi`, `earth`, `good day`, `sunshine`, `howdy`, `galaxy`)))
 	// Output:
 	// true
 	// false

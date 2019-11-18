@@ -12,11 +12,11 @@ type (
 
 	// AssignableChecker is a function that can determine whether or not another type is assignable
 	// depending on given parameters.
-	AssignableChecker func(self NamedType, typ Type) bool
+	AssignableChecker func(self NamedType, typ Value) bool
 
 	// NamedType is implemented by types that are named and made available using an AliasMap
 	NamedType interface {
-		Type
+		Value
 		Factory
 
 		// AssignableType returns a reflect.Type that is either an interface that instances

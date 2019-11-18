@@ -26,9 +26,9 @@ func (a *arguments) AssertSize(funcName string, min, max int) {
 	}
 }
 
-func (a *arguments) Arg(funcName string, n int, typ dgo.Type) dgo.Value {
+func (a *arguments) Arg(funcName string, n int, typ dgo.Value) dgo.Value {
 	v := a.Get(n)
-	if typ.Instance(v) {
+	if typ.Assignable(v) {
 		return v
 	}
 	panic(illegalArgument(funcName, typ.String(), a.InterfaceSlice(), n))

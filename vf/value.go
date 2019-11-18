@@ -8,7 +8,7 @@ import (
 )
 
 // New creates an instance of the given type from the given argument
-func New(typ dgo.Type, argument dgo.Value) dgo.Value {
+func New(typ, argument dgo.Value) dgo.Value {
 	return internal.New(typ, argument)
 }
 

@@ -20,15 +20,10 @@ type (
 	// defaultMapType is the unconstrained map type
 	defaultMapType int
 
-	// exactMapType represents a map exactly
-	exactMapType struct {
-		value dgo.Map
-	}
-
 	// sizedMapType represents a map with constraints on key type, value type, and size
 	sizedMapType struct {
-		keyType   dgo.Type
-		valueType dgo.Type
+		keyType   dgo.Value
+		valueType dgo.Value
 		min       int
 		max       int
 	}
@@ -37,8 +32,6 @@ type (
 		key   dgo.Value
 		value dgo.Value
 	}
-
-	exactEntryType mapEntry
 
 	hashNode struct {
 		mapEntry
@@ -58,59 +51,9 @@ type (
 	}
 )
 
-func (t *exactEntryType) Assignable(other dgo.Type) bool {
-	if ot, ok := other.(*exactEntryType); ok {
-		return (*mapEntry)(t).Equals((*mapEntry)(ot))
-	}
-	return CheckAssignableTo(nil, other, t)
-}
-
-func (t *exactEntryType) Equals(other interface{}) bool {
-	if ot, ok := other.(*exactEntryType); ok {
-		return (*mapEntry)(t).Equals((*mapEntry)(ot))
-	}
-	return false
-}
-
-func (t *exactEntryType) Generic() dgo.Type {
-	return DefaultAnyType
-}
-
-func (t *exactEntryType) HashCode() int {
-	return (*mapEntry)(t).HashCode()
-}
-
-func (t *exactEntryType) Instance(value interface{}) bool {
-	if ot, ok := value.(dgo.MapEntry); ok {
-		return (*mapEntry)(t).Equals(ot)
-	}
-	return false
-}
-
-func (t *exactEntryType) ReflectType() reflect.Type {
-	return reflect.TypeOf((*dgo.MapEntry)(nil)).Elem()
-}
-
-func (t *exactEntryType) String() string {
-	return TypeString(t)
-}
-
-func (t *exactEntryType) Type() dgo.Type {
-	return &metaType{t}
-}
-
-func (t *exactEntryType) TypeIdentifier() dgo.TypeIdentifier {
-	return dgo.TiMapEntryExact
-}
-
 // NewMapEntry returns a new MapEntry instance with the given key and value
 func NewMapEntry(key, value interface{}) dgo.MapEntry {
 	return &mapEntry{Value(key), Value(value)}
-}
-
-func (t *exactEntryType) Value() dgo.Value {
-	v := (*mapEntry)(t)
-	return v
 }
 
 func (v *mapEntry) AppendTo(w dgo.Indenter) {
@@ -120,6 +63,10 @@ func (v *mapEntry) AppendTo(w dgo.Indenter) {
 		w.Append(` `)
 	}
 	w.AppendValue(v.value)
+}
+
+func (v *mapEntry) Assignable(other interface{}) bool {
+	return v.Equals(other) || CheckAssignableTo(nil, other, v)
 }
 
 func (v *mapEntry) Equals(other interface{}) bool {
@@ -176,12 +123,16 @@ func (v *mapEntry) Key() dgo.Value {
 	return v.key
 }
 
+func (v *mapEntry) ReflectType() reflect.Type {
+	return reflect.TypeOf((*dgo.MapEntry)(nil)).Elem()
+}
+
 func (v *mapEntry) String() string {
 	return util.ToStringERP(v)
 }
 
-func (v *mapEntry) Type() dgo.Type {
-	return (*exactEntryType)(v)
+func (v *mapEntry) TypeIdentifier() dgo.TypeIdentifier {
+	return dgo.TiMapEntryExact
 }
 
 func (v *mapEntry) Value() dgo.Value {
@@ -231,7 +182,7 @@ func newMap(t dgo.MapType, arg dgo.Value) dgo.Map {
 	} else {
 		m = mapFromArgs([]interface{}{arg}, true)
 	}
-	if !t.Instance(m) {
+	if !t.Assignable(m) {
 		panic(IllegalAssignment(t, m))
 	}
 	return m
@@ -336,12 +287,6 @@ func FromReflectedMap(rm reflect.Value, frozen bool) dgo.Value {
 	return m
 }
 
-// FromReflectedStruct creates a frozen Map from the exported fields of a go struct. It panics if rm's kind is not
-// reflect.Struct.
-func FromReflectedStruct(rv reflect.Value) dgo.Struct {
-	return &structVal{rs: rv, frozen: false}
-}
-
 // MapWithCapacity creates an empty dgo.Map suitable to hold a given number of entries. The map can be optionally
 // constrained by the given type which can be nil, the zero value of a go map, or a dgo.MapType
 func MapWithCapacity(capacity int, typ interface{}) dgo.Map {
@@ -355,8 +300,8 @@ func MapWithCapacity(capacity int, typ interface{}) dgo.Map {
 func asMapType(ti interface{}) (mt dgo.MapType) {
 	ok := false
 	switch ti := ti.(type) {
-	case dgo.Type:
-		mt, ok = ti.(dgo.MapType)
+	case dgo.MapType:
+		mt = ti
 	case dgo.String:
 		mt, ok = Parse(ti.GoString()).(dgo.MapType)
 	case string:
@@ -430,6 +375,21 @@ func (g *hashMap) AppendTo(w dgo.Indenter) {
 	appendMapTo(g, w)
 }
 
+func (g *hashMap) Assignable(other interface{}) bool {
+	return g.Equals(other) || CheckAssignableTo(nil, other, g)
+}
+
+func (g *hashMap) AssignableTo(guard dgo.RecursionGuard, other dgo.Value) bool {
+	switch ot := other.(type) {
+	case defaultMapType:
+		return true
+	case *sizedMapType:
+		return ot.Assignable(g)
+	default:
+		return g.Equals(other)
+	}
+}
+
 func appendMapTo(m dgo.Map, w dgo.Indenter) {
 	w.AppendRune('{')
 	ew := w.Indent()
@@ -491,7 +451,13 @@ func (g *hashMap) EachValue(actor dgo.Consumer) {
 }
 
 func (g *hashMap) Equals(other interface{}) bool {
-	return equals(nil, g, other)
+	if _, ok := other.(dgo.Value); ok {
+		return equals(nil, g, other)
+	}
+	if reflect.ValueOf(other).Kind() == reflect.Map {
+		return equals(nil, g, Value(other))
+	}
+	return false
 }
 
 func (g *hashMap) deepEqual(seen []dgo.Value, other deepEqual) bool {
@@ -529,6 +495,14 @@ func (g *hashMap) Frozen() bool {
 
 func (g *hashMap) FrozenCopy() dgo.Value {
 	return g.Copy(true)
+}
+
+func (g *hashMap) Generic() dgo.Value {
+	return &sizedMapType{
+		keyType:   Generic(g.KeyType()),
+		valueType: Generic(g.ValueType()),
+		min:       0,
+		max:       math.MaxInt64}
 }
 
 func (g *hashMap) Get(key interface{}) dgo.Value {
@@ -594,6 +568,10 @@ func (g *hashMap) Keys() dgo.Array {
 	return arrayFromIterator(g.len, g.EachKey)
 }
 
+func (g *hashMap) KeyType() dgo.Value {
+	return (*allOfType)(arrayFromIterator(g.len, g.EachKey))
+}
+
 func (g *hashMap) Len() int {
 	return g.len
 }
@@ -620,6 +598,18 @@ func (g *hashMap) Merge(associations dgo.Map) dgo.Map {
 	c.PutAll(associations)
 	c.frozen = g.frozen
 	return c
+}
+
+func (g *hashMap) Max() int {
+	return g.len
+}
+
+func (g *hashMap) Min() int {
+	return g.len
+}
+
+func (g *hashMap) New(arg dgo.Value) dgo.Value {
+	return newMap(g, arg)
 }
 
 func (g *hashMap) Put(ki, vi interface{}) dgo.Value {
@@ -712,7 +702,7 @@ func (g *hashMap) ReflectTo(value reflect.Value) {
 		ht = ht.Elem()
 	}
 	if ht.Kind() == reflect.Interface && ht.Name() == `` {
-		ht = g.Type().ReflectType()
+		ht = g.ReflectType()
 	}
 	keyType := ht.Key()
 	valueType := ht.Elem()
@@ -731,6 +721,10 @@ func (g *hashMap) ReflectTo(value reflect.Value) {
 		m = x
 	}
 	value.Set(m)
+}
+
+func (g *hashMap) ReflectType() reflect.Type {
+	return reflect.MapOf(g.KeyType().ReflectType(), g.ValueType().ReflectType())
 }
 
 func (g *hashMap) Remove(ki interface{}) dgo.Value {
@@ -825,7 +819,7 @@ func (g *hashMap) SetType(ti interface{}) {
 		panic(frozenMap(`SetType`))
 	}
 	mt := asMapType(ti)
-	if mt == nil || mt.Instance(g) {
+	if mt == nil || mt.Assignable(g) {
 		g.typ = mt
 		return
 	}
@@ -846,6 +840,14 @@ func (g *hashMap) StringKeys() bool {
 		}
 	}
 	return true
+}
+
+func (g *hashMap) TypeIdentifier() dgo.TypeIdentifier {
+	return dgo.TiMapExact
+}
+
+func (g *hashMap) Unbounded() bool {
+	return false
 }
 
 func (g *hashMap) With(ki, vi interface{}) dgo.Map {
@@ -892,15 +894,12 @@ func (g *hashMap) WithoutAll(keys dgo.Array) dgo.Map {
 	return c
 }
 
-func (g *hashMap) Type() dgo.Type {
-	if g.typ == nil {
-		return &exactMapType{g}
-	}
-	return g.typ
-}
-
 func (g *hashMap) Values() dgo.Array {
 	return &array{slice: g.values(), frozen: g.frozen}
+}
+
+func (g *hashMap) ValueType() dgo.Value {
+	return (*allOfType)(arrayFromIterator(g.len, g.EachValue))
 }
 
 func (g *hashMap) assertType(k, v dgo.Value, addedSize int) {
@@ -911,11 +910,11 @@ func (g *hashMap) assertType(k, v dgo.Value, addedSize int) {
 			}
 		} else {
 			kt := t.KeyType()
-			if !kt.Instance(k) {
+			if !kt.Assignable(k) {
 				panic(IllegalAssignment(kt, k))
 			}
 			vt := t.ValueType()
-			if !vt.Instance(v) {
+			if !vt.Assignable(v) {
 				panic(IllegalAssignment(vt, v))
 			}
 		}
@@ -1000,18 +999,15 @@ func mapTypeOne(args []interface{}) dgo.MapType {
 func mapTypeTwo(args []interface{}) dgo.MapType {
 	// key and value types or min and max integers
 	switch a0 := Value(args[0]).(type) {
-	case dgo.Type:
-		a1, ok := Value(args[1]).(dgo.Type)
-		if !ok {
-			panic(illegalArgument(`Map`, `Type`, args, 1))
-		}
-		return newMapType(a0, a1, 0, math.MaxInt64)
 	case dgo.Integer:
 		a1, ok := Value(args[1]).(dgo.Integer)
 		if !ok {
 			panic(illegalArgument(`Map`, `Integer`, args, 1))
 		}
 		return newMapType(nil, nil, int(a0.GoInt()), int(a1.GoInt()))
+	case dgo.Value:
+		a1 := Value(args[1])
+		return newMapType(a0, a1, 0, math.MaxInt64)
 	default:
 		panic(illegalArgument(`Map`, `Type or Integer`, args, 0))
 	}
@@ -1019,14 +1015,8 @@ func mapTypeTwo(args []interface{}) dgo.MapType {
 
 func mapTypeThree(args []interface{}) dgo.MapType {
 	// key and value types, and min integer
-	a0, ok := Value(args[0]).(dgo.Type)
-	if !ok {
-		panic(illegalArgument(`Map`, `Type`, args, 0))
-	}
-	a1, ok := Value(args[1]).(dgo.Type)
-	if !ok {
-		panic(illegalArgument(`Map`, `Type`, args, 1))
-	}
+	a0 := Value(args[0])
+	a1 := Value(args[1])
 	a2, ok := Value(args[2]).(dgo.Integer)
 	if !ok {
 		panic(illegalArgument(`Map`, `Integer`, args, 2))
@@ -1036,14 +1026,8 @@ func mapTypeThree(args []interface{}) dgo.MapType {
 
 func mapTypeFour(args []interface{}) dgo.MapType {
 	// key and value types, and min and max integers
-	a0, ok := Value(args[0]).(dgo.Type)
-	if !ok {
-		panic(illegalArgument(`Map`, `Type`, args, 0))
-	}
-	a1, ok := Value(args[1]).(dgo.Type)
-	if !ok {
-		panic(illegalArgument(`Map`, `Type`, args, 1))
-	}
+	a0 := Value(args[0])
+	a1 := Value(args[1])
 	a2, ok := Value(args[2]).(dgo.Integer)
 	if !ok {
 		panic(illegalArgument(`Map`, `Integer`, args, 2))
@@ -1073,7 +1057,7 @@ func MapType(args []interface{}) dgo.MapType {
 	}
 }
 
-func newMapType(kt, vt dgo.Type, min, max int) dgo.MapType {
+func newMapType(kt, vt dgo.Value, min, max int) dgo.MapType {
 	if min < 0 {
 		min = 0
 	}
@@ -1100,15 +1084,52 @@ func newMapType(kt, vt dgo.Type, min, max int) dgo.MapType {
 	return &sizedMapType{keyType: kt, valueType: vt, min: min, max: max}
 }
 
-func (t *sizedMapType) Assignable(other dgo.Type) bool {
+func (t *sizedMapType) Assignable(other interface{}) bool {
 	return Assignable(nil, t, other)
 }
 
-func (t *sizedMapType) DeepAssignable(guard dgo.RecursionGuard, other dgo.Type) bool {
-	if ot, ok := other.(*sizedMapType); ok {
+func (t *sizedMapType) DeepAssignable(guard dgo.RecursionGuard, other dgo.Value) bool {
+	switch ot := other.(type) {
+	case *sizedMapType:
 		return t.min <= ot.min && ot.max <= t.max && Assignable(guard, t.keyType, ot.keyType) && Assignable(guard, t.valueType, ot.valueType)
+	case dgo.MapType:
+		if t.min <= ot.Min() && ot.Max() <= t.max {
+			if DefaultAnyType != t.keyType {
+				if !Assignable(guard, t.keyType, ot.KeyType()) {
+					return false
+				}
+			}
+			if DefaultAnyType != t.valueType {
+				if !Assignable(guard, t.valueType, ot.ValueType()) {
+					return false
+				}
+			}
+			return true
+		}
+		return false
+	case dgo.Value:
+		return CheckAssignableTo(guard, other, t)
+	default:
+		rv := reflect.ValueOf(other)
+		if rv.Kind() != reflect.Map {
+			return false
+		}
+		l := rv.Len()
+		if t.min <= l && l <= t.max {
+			if DefaultAnyType != t.keyType {
+				if !Assignable(guard, t.keyType, TypeFromReflected(rv.Type().Key())) {
+					return false
+				}
+			}
+			if DefaultAnyType != t.valueType {
+				if !Assignable(guard, t.valueType, TypeFromReflected(rv.Type().Elem())) {
+					return false
+				}
+			}
+			return true
+		}
+		return false
 	}
-	return CheckAssignableTo(guard, other, t)
 }
 
 func (t *sizedMapType) Equals(other interface{}) bool {
@@ -1143,32 +1164,7 @@ func (t *sizedMapType) deepHashCode(seen []dgo.Value) int {
 	return h
 }
 
-func (t *sizedMapType) Instance(value interface{}) bool {
-	return Instance(nil, t, value)
-}
-
-func (t *sizedMapType) DeepInstance(guard dgo.RecursionGuard, value interface{}) bool {
-	if ov, ok := value.(dgo.Map); ok {
-		l := ov.Len()
-		if t.min <= l && l <= t.max {
-			kt := t.keyType
-			vt := t.valueType
-			if DefaultAnyType == kt {
-				if DefaultAnyType == vt {
-					return true
-				}
-				return ov.AllValues(func(v dgo.Value) bool { return Instance(guard, vt, v) })
-			}
-			if DefaultAnyType == vt {
-				return ov.AllKeys(func(k dgo.Value) bool { return kt.Instance(k) })
-			}
-			return ov.All(func(e dgo.MapEntry) bool { return Instance(guard, kt, e.Key()) && Instance(guard, vt, e.Value()) })
-		}
-	}
-	return false
-}
-
-func (t *sizedMapType) KeyType() dgo.Type {
+func (t *sizedMapType) KeyType() dgo.Value {
 	return t.keyType
 }
 
@@ -1193,8 +1189,8 @@ func (t *sizedMapType) Resolve(ap dgo.AliasProvider) {
 	vt := t.valueType
 	t.keyType = DefaultAnyType
 	t.valueType = DefaultAnyType
-	kt = ap.Replace(kt).(dgo.Type)
-	vt = ap.Replace(vt).(dgo.Type)
+	kt = ap.Replace(kt)
+	vt = ap.Replace(vt)
 	t.keyType = kt
 	t.valueType = vt
 }
@@ -1203,15 +1199,11 @@ func (t *sizedMapType) String() string {
 	return TypeString(t)
 }
 
-func (t *sizedMapType) Type() dgo.Type {
-	return &metaType{t}
-}
-
 func (t *sizedMapType) TypeIdentifier() dgo.TypeIdentifier {
 	return dgo.TiMap
 }
 
-func (t *sizedMapType) ValueType() dgo.Type {
+func (t *sizedMapType) ValueType() dgo.Value {
 	return t.valueType
 }
 
@@ -1222,12 +1214,15 @@ func (t *sizedMapType) Unbounded() bool {
 // DefaultMapType is the unconstrained Map type
 const DefaultMapType = defaultMapType(0)
 
-func (t defaultMapType) Assignable(other dgo.Type) bool {
+func (t defaultMapType) Assignable(other interface{}) bool {
 	switch other.(type) {
 	case defaultMapType, *sizedMapType:
 		return true
+	case dgo.Value:
+		return CheckAssignableTo(nil, other, t)
+	default:
+		return reflect.TypeOf(other).Kind() == reflect.Map
 	}
-	return CheckAssignableTo(nil, other, t)
 }
 
 func (t defaultMapType) Equals(other interface{}) bool {
@@ -1238,12 +1233,7 @@ func (t defaultMapType) HashCode() int {
 	return int(dgo.TiMap)
 }
 
-func (t defaultMapType) Instance(value interface{}) bool {
-	_, ok := value.(dgo.Map)
-	return ok
-}
-
-func (t defaultMapType) KeyType() dgo.Type {
+func (t defaultMapType) KeyType() dgo.Value {
 	return DefaultAnyType
 }
 
@@ -1267,15 +1257,11 @@ func (t defaultMapType) String() string {
 	return TypeString(t)
 }
 
-func (t defaultMapType) Type() dgo.Type {
-	return &metaType{t}
-}
-
 func (t defaultMapType) TypeIdentifier() dgo.TypeIdentifier {
 	return dgo.TiMap
 }
 
-func (t defaultMapType) ValueType() dgo.Type {
+func (t defaultMapType) ValueType() dgo.Value {
 	return DefaultAnyType
 }
 
@@ -1283,98 +1269,6 @@ func (t defaultMapType) Unbounded() bool {
 	return true
 }
 
-func (t *exactMapType) Assignable(other dgo.Type) bool {
-	return CheckAssignableTo(nil, other, t)
-}
-
-func (t *exactMapType) AssignableTo(guard dgo.RecursionGuard, other dgo.Type) bool {
-	switch ot := other.(type) {
-	case defaultMapType:
-		return true
-	case *exactMapType:
-		return t.Equals(ot)
-	case *sizedMapType:
-		return ot.Instance(t.value)
-	}
-	return false
-}
-
-func (t *exactMapType) Generic() dgo.Type {
-	return &sizedMapType{
-		keyType:   Generic(t.KeyType()),
-		valueType: Generic(t.ValueType()),
-		min:       0,
-		max:       math.MaxInt64}
-}
-
-func (t *exactMapType) Equals(other interface{}) bool {
-	if ot, ok := other.(*exactMapType); ok {
-		return t.value.Equals(ot.value)
-	}
-	return false
-}
-
-func (t *exactMapType) HashCode() int {
-	return t.value.HashCode()*31 + int(dgo.TiMapExact)
-}
-
-func (t *exactMapType) Instance(value interface{}) bool {
-	if ov, ok := value.(dgo.Map); ok {
-		return t.value.Equals(ov)
-	}
-	return false
-}
-
-func (t *exactMapType) KeyType() dgo.Type {
-	return (*allOfValueType)(arrayFromIterator(t.value.Len(), t.value.EachKey))
-}
-
-func (t *exactMapType) Max() int {
-	return t.value.Len()
-}
-
-func (t *exactMapType) Min() int {
-	return t.value.Len()
-}
-
-func (t *exactMapType) New(arg dgo.Value) dgo.Value {
-	return newMap(t, arg)
-}
-
-func (t *exactMapType) ReflectType() reflect.Type {
-	return reflect.MapOf(t.KeyType().ReflectType(), t.ValueType().ReflectType())
-}
-
-func (t *exactMapType) Resolve(ap dgo.AliasProvider) {
-	if ac, ok := t.value.(dgo.AliasContainer); ok {
-		ac.Resolve(ap)
-	}
-}
-
-func (t *exactMapType) String() string {
-	return TypeString(t)
-}
-
-func (t *exactMapType) Type() dgo.Type {
-	return &metaType{t}
-}
-
-func (t *exactMapType) TypeIdentifier() dgo.TypeIdentifier {
-	return dgo.TiMapExact
-}
-
-func (t *exactMapType) Value() dgo.Value {
-	return t.value
-}
-
-func (t *exactMapType) ValueType() dgo.Type {
-	return (*allOfValueType)(arrayFromIterator(t.value.Len(), t.value.EachValue))
-}
-
 func frozenMap(f string) error {
 	return fmt.Errorf(`%s called on a frozen Map`, f)
-}
-
-func (t *exactMapType) Unbounded() bool {
-	return false
 }

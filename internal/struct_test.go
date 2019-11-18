@@ -425,9 +425,7 @@ func Test_structMap_Type(t *testing.T) {
 	}
 	s := structA{A: `Alpha`, B: 32}
 	m := vf.Map(&s)
-	tp := m.Type()
-	require.Assignable(t, tp, tp)
-	require.Instance(t, tp, m)
+	require.Assignable(t, m, m)
 }
 
 func Test_structMap_Values(t *testing.T) {

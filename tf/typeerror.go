@@ -6,12 +6,12 @@ import (
 )
 
 // IllegalAssignment returns the error that represents an assignment type constraint mismatch
-func IllegalAssignment(expected dgo.Type, actual dgo.Value) dgo.Value {
+func IllegalAssignment(expected dgo.Value, actual dgo.Value) dgo.Value {
 	return internal.IllegalAssignment(expected, actual)
 }
 
 // IllegalSize returns the error that represents an size constraint mismatch
-func IllegalSize(expected dgo.Type, size int) dgo.Value {
+func IllegalSize(expected dgo.Value, size int) dgo.Value {
 	return internal.IllegalSize(expected, size)
 }
 

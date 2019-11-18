@@ -27,12 +27,6 @@ func TestTheTester(t *testing.T) {
 		require.NotAssignable(ft, typ.String, typ.String)
 	})
 	ensureFailed(t, func(ft *testing.T) {
-		require.Instance(ft, typ.String, 2)
-	})
-	ensureFailed(t, func(ft *testing.T) {
-		require.NotInstance(ft, typ.String, `a`)
-	})
-	ensureFailed(t, func(ft *testing.T) {
 		require.Equal(ft, `a`, `b`)
 	})
 	ensureFailed(t, func(ft *testing.T) {

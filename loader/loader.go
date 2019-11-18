@@ -2,12 +2,10 @@ package loader
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 	"sync"
 
 	"github.com/lyraproj/dgo/dgo"
-	"github.com/lyraproj/dgo/tf"
 	"github.com/lyraproj/dgo/vf"
 )
 
@@ -78,51 +76,6 @@ func New(parentNs dgo.Loader, name string, entries dgo.Map, finder dgo.Finder, n
 		nsCreator:  nsCreator}
 }
 
-// Type is the basic immutable loader dgo.Type
-var Type = tf.NewNamed(`mapLoader`,
-	func(arg dgo.Value) dgo.Value {
-		l := &mapLoader{}
-		l.init(arg.(dgo.Map))
-		return l
-	},
-	func(v dgo.Value) dgo.Value {
-		return v.(*mapLoader).initMap()
-	},
-	reflect.TypeOf(&mapLoader{}),
-	reflect.TypeOf((*dgo.Loader)(nil)).Elem(),
-	nil)
-
-func (l *mapLoader) init(im dgo.Map) {
-	l.name = im.Get(`name`).String()
-	l.entries = im.Get(`entries`).(dgo.Map)
-}
-
-func (l *mapLoader) initMap() dgo.Map {
-	m := vf.MapWithCapacity(5, nil)
-	m.Put(`name`, l.name)
-	m.Put(`entries`, l.entries)
-	return m
-}
-
-func (l *mapLoader) String() string {
-	return Type.ValueString(l)
-}
-
-func (l *mapLoader) Type() dgo.Type {
-	return tf.ExactNamed(Type, l)
-}
-
-func (l *mapLoader) Equals(other interface{}) bool {
-	if ov, ok := other.(*mapLoader); ok {
-		return l.entries.Equals(ov.entries)
-	}
-	return false
-}
-
-func (l *mapLoader) HashCode() int {
-	return l.entries.HashCode()
-}
-
 func (l *mapLoader) Get(key interface{}) dgo.Value {
 	return l.entries.Get(key)
 }
@@ -160,31 +113,6 @@ func (l *mapLoader) ParentNamespace() dgo.Loader {
 	return l.parentNs
 }
 
-// MutableType is the mutable loader dgo.Type
-var MutableType = tf.NewNamed(`loader`,
-	func(args dgo.Value) dgo.Value {
-		l := &loader{}
-		l.init(args.(dgo.Map))
-		return l
-	},
-	func(v dgo.Value) dgo.Value {
-		return v.(*loader).initMap()
-	},
-	reflect.TypeOf(&loader{}),
-	reflect.TypeOf((*dgo.Loader)(nil)).Elem(),
-	nil)
-
-func (l *loader) init(im dgo.Map) {
-	l.mapLoader.init(im)
-	l.namespaces = im.Get(`namespaces`).(dgo.Map)
-}
-
-func (l *loader) initMap() dgo.Map {
-	m := l.mapLoader.initMap()
-	m.Put(`namespaces`, l.namespaces)
-	return m
-}
-
 func (l *loader) add(key, value dgo.Value) dgo.Value {
 	l.lock.Lock()
 	defer l.lock.Unlock()
@@ -207,17 +135,6 @@ func (l *loader) add(key, value dgo.Value) dgo.Value {
 		addEntry(key, value)
 	}
 	return value
-}
-
-func (l *loader) Equals(other interface{}) bool {
-	if ov, ok := other.(*loader); ok {
-		return l.entries.Equals(ov.entries) && l.namespaces.Equals(ov.namespaces)
-	}
-	return false
-}
-
-func (l *loader) HashCode() int {
-	return l.entries.HashCode()*31 + l.namespaces.HashCode()
 }
 
 func (l *loader) Get(ki interface{}) dgo.Value {
@@ -248,14 +165,18 @@ func (l *loader) Namespace(name string) dgo.Loader {
 	}
 
 	l.lock.RLock()
-	ns, ok := l.namespaces.Get(name).(dgo.Loader)
+	nv, ok := l.namespaces.Get(name).(dgo.Native)
 	l.lock.RUnlock()
 
-	if ok || l.nsCreator == nil {
-		return ns
+	if ok {
+		return nv.GoValue().(dgo.Loader)
+	}
+	if l.nsCreator == nil {
+		return nil
 	}
 
-	if ns = l.nsCreator(l, name); ns != nil {
+	ns := l.nsCreator(l, name)
+	if ns != nil {
 		var old dgo.Value
 
 		l.lock.Lock()
@@ -282,57 +203,12 @@ func (l *loader) NewChild(finder dgo.Finder, nsCreator dgo.NsCreator) dgo.Loader
 	return loaderWithParent(l, finder, nsCreator)
 }
 
-func (l *loader) String() string {
-	return MutableType.ValueString(l)
-}
-
-func (l *loader) Type() dgo.Type {
-	return tf.ExactNamed(MutableType, l)
-}
-
-// ChildType is the parented loader dgo.Type
-var ChildType = tf.NewNamed(`childLoader`,
-	func(args dgo.Value) dgo.Value {
-		l := &childLoader{}
-		l.init(args.(dgo.Map))
-		return l
-	},
-	func(v dgo.Value) dgo.Value {
-		return v.(*childLoader).initMap()
-	},
-	reflect.TypeOf(&loader{}),
-	reflect.TypeOf((*dgo.Loader)(nil)).Elem(),
-	nil)
-
-func (l *childLoader) init(im dgo.Map) {
-	l.Loader = im.Get(`loader`).(dgo.Loader)
-	l.parent = im.Get(`parent`).(dgo.Loader)
-}
-
-func (l *childLoader) initMap() dgo.Map {
-	m := vf.MapWithCapacity(2, nil)
-	m.Put(`loader`, l.Loader)
-	m.Put(`parent`, l.parent)
-	return m
-}
-
-func (l *childLoader) Equals(other interface{}) bool {
-	if ov, ok := other.(*childLoader); ok {
-		return l.Loader.Equals(ov.Loader) && l.parent.Equals(ov.parent)
-	}
-	return false
-}
-
 func (l *childLoader) Get(key interface{}) dgo.Value {
 	v := l.parent.Get(key)
 	if v == nil {
 		v = l.Loader.Get(key)
 	}
 	return v
-}
-
-func (l *childLoader) HashCode() int {
-	return l.Loader.HashCode()*31 + l.parent.HashCode()
 }
 
 func (l *childLoader) Load(name string) dgo.Value {
@@ -357,14 +233,6 @@ func (l *childLoader) Namespace(name string) dgo.Loader {
 
 func (l *childLoader) NewChild(finder dgo.Finder, nsCreator dgo.NsCreator) dgo.Loader {
 	return loaderWithParent(l, finder, nsCreator)
-}
-
-func (l *childLoader) String() string {
-	return ChildType.ValueString(l)
-}
-
-func (l *childLoader) Type() dgo.Type {
-	return tf.ExactNamed(ChildType, l)
 }
 
 func loaderWithParent(parent dgo.Loader, finder dgo.Finder, nsCreator dgo.NsCreator) dgo.Loader {

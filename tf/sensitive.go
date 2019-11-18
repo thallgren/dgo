@@ -6,6 +6,6 @@ import (
 )
 
 // Sensitive returns a Sensitive dgo.Type that wraps the given dgo.Type
-func Sensitive(args ...interface{}) dgo.Type {
+func Sensitive(args ...interface{}) dgo.Value {
 	return internal.SensitiveType(args)
 }

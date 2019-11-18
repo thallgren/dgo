@@ -3,6 +3,7 @@ package internal
 import (
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"sort"
 
@@ -17,6 +18,18 @@ type (
 		frozen bool
 	}
 )
+
+// FromReflectedStruct creates a frozen Map from the exported fields of a go struct. It panics if rm's kind is not
+// reflect.Struct.
+func FromReflectedStruct(rv reflect.Value) dgo.Struct {
+	if rv.Kind() == reflect.Ptr {
+		rv = rv.Elem()
+	}
+	if rv.Kind() != reflect.Struct {
+		panic(fmt.Errorf(`illegal argument for FromReflectedStruct. Expected a struct or a pointer to struct, got %T`, rv))
+	}
+	return &structVal{rs: rv, frozen: false}
+}
 
 func (v *structVal) AppendTo(w dgo.Indenter) {
 	appendMapTo(v, w)
@@ -66,6 +79,21 @@ func (v *structVal) AnyValue(predicate dgo.Predicate) bool {
 	return !v.AllValues(func(entry dgo.Value) bool { return !predicate(entry) })
 }
 
+func (v *structVal) Assignable(other interface{}) bool {
+	return v.Equals(other) || CheckAssignableTo(nil, other, v)
+}
+
+func (v *structVal) AssignableTo(guard dgo.RecursionGuard, other interface{}) bool {
+	switch ot := other.(type) {
+	case defaultMapType:
+		return true
+	case *sizedMapType:
+		return ot.Assignable(v)
+	default:
+		return v.Equals(ot)
+	}
+}
+
 func (v *structVal) ContainsKey(key interface{}) bool {
 	if s, ok := stringKey(key); ok {
 		return v.rs.FieldByName(s).IsValid()
@@ -103,7 +131,12 @@ func (v *structVal) EachValue(actor dgo.Consumer) {
 }
 
 func (v *structVal) Equals(other interface{}) bool {
-	return equals(nil, v, other)
+	if _, ok := other.(dgo.Value); ok {
+		return equals(nil, v, other)
+	}
+	a := v.rs.Type()
+	b := reflect.TypeOf(other)
+	return (a == b || b.Kind() == reflect.Ptr && a == b.Elem()) && v.Equals(FromReflectedStruct(reflect.ValueOf(other)))
 }
 
 func (v *structVal) GoStruct() interface{} {
@@ -191,6 +224,14 @@ func stringKey(key interface{}) (string, bool) {
 	return ``, false
 }
 
+func (v *structVal) Generic() dgo.Value {
+	return &sizedMapType{
+		keyType:   Generic(v.KeyType()),
+		valueType: Generic(v.ValueType()),
+		min:       0,
+		max:       math.MaxInt64}
+}
+
 func (v *structVal) Get(key interface{}) dgo.Value {
 	if s, ok := stringKey(key); ok {
 		rv := v.rs
@@ -204,6 +245,10 @@ func (v *structVal) Get(key interface{}) dgo.Value {
 
 func (v *structVal) Keys() dgo.Array {
 	return arrayFromIterator(v.Len(), v.EachKey)
+}
+
+func (v *structVal) KeyType() dgo.Value {
+	return (*allOfType)(arrayFromIterator(v.Len(), v.EachKey))
 }
 
 func (v *structVal) Len() int {
@@ -227,6 +272,18 @@ func (v *structVal) Merge(associations dgo.Map) dgo.Map {
 	c.PutAll(associations)
 	c.frozen = v.frozen && associations.Frozen()
 	return c
+}
+
+func (v *structVal) Max() int {
+	return v.Len()
+}
+
+func (v *structVal) Min() int {
+	return v.Len()
+}
+
+func (v *structVal) New(arg dgo.Value) dgo.Value {
+	return newMap(v, arg)
 }
 
 func (v *structVal) Put(key, value interface{}) dgo.Value {
@@ -265,6 +322,10 @@ func (v *structVal) ReflectTo(value reflect.Value) {
 	}
 }
 
+func (v *structVal) ReflectType() reflect.Type {
+	return reflect.MapOf(v.KeyType().ReflectType(), v.ValueType().ReflectType())
+}
+
 func (v *structVal) Remove(key interface{}) dgo.Value {
 	panic(errors.New(`struct fields cannot be removed`))
 }
@@ -285,12 +346,20 @@ func (v *structVal) StringKeys() bool {
 	return true
 }
 
-func (v *structVal) Type() dgo.Type {
-	return &exactMapType{v}
+func (v *structVal) TypeIdentifier() dgo.TypeIdentifier {
+	return dgo.TiMapExact
+}
+
+func (v *structVal) Unbounded() bool {
+	return false
 }
 
 func (v *structVal) Values() dgo.Array {
 	return arrayFromIterator(v.Len(), v.EachValue)
+}
+
+func (v *structVal) ValueType() dgo.Value {
+	return (*allOfType)(arrayFromIterator(v.Len(), v.EachValue))
 }
 
 func (v *structVal) With(key, value interface{}) dgo.Map {

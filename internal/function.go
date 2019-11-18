@@ -15,11 +15,6 @@ type (
 		returns   dgo.TupleType
 	}
 
-	// exactFunctionType is a dgo.FunctionType representation of a reflected goFunc
-	exactFunctionType struct {
-		funcType reflect.Type
-	}
-
 	// exactFunctionTuple is a dgo.Tuple type that is backed either by the NumIn() and In() methods or
 	// the NumOut() and Out() methods of a reflect.Type of kind reflect.Func so that the tuple either
 	// represents the arguments or the return values of a that goFunc
@@ -31,17 +26,22 @@ type (
 
 	// goFunc represents a go func
 	goFunc reflect.Value
+
+	// goFuncType represents a go func type
+	goFuncType struct {
+		reflect.Type
+	}
 )
 
-func (t *exactFunctionTuple) Assignable(other dgo.Type) bool {
+func (t *exactFunctionTuple) Assignable(other interface{}) bool {
 	return Assignable(nil, t, other)
 }
 
-func (t *exactFunctionTuple) DeepAssignable(guard dgo.RecursionGuard, other dgo.Type) bool {
+func (t *exactFunctionTuple) DeepAssignable(guard dgo.RecursionGuard, other dgo.Value) bool {
 	return tupleAssignable(guard, t, other)
 }
 
-func (t *exactFunctionTuple) Element(index int) dgo.Type {
+func (t *exactFunctionTuple) Element(index int) dgo.Value {
 	rt := t.element(index)
 	if t.variadic {
 		n := t.count() - 1
@@ -52,7 +52,7 @@ func (t *exactFunctionTuple) Element(index int) dgo.Type {
 	return TypeFromReflected(rt)
 }
 
-func (t *exactFunctionTuple) ElementType() dgo.Type {
+func (t *exactFunctionTuple) ElementType() dgo.Value {
 	return tupleElementType(t)
 }
 
@@ -76,10 +76,6 @@ func (t *exactFunctionTuple) deepHashCode(seen []dgo.Value) int {
 	return tupleHashCode(t, seen)
 }
 
-func (t *exactFunctionTuple) Instance(value interface{}) bool {
-	return tupleInstance(nil, t, value)
-}
-
 func (t *exactFunctionTuple) Len() int {
 	return t.count()
 }
@@ -98,10 +94,6 @@ func (t *exactFunctionTuple) Min() int {
 
 func (t *exactFunctionTuple) String() string {
 	return TypeString(t)
-}
-
-func (t *exactFunctionTuple) Type() dgo.Type {
-	return &metaType{t}
 }
 
 func (t *exactFunctionTuple) TypeIdentifier() dgo.TypeIdentifier {
@@ -130,65 +122,6 @@ func (t *exactFunctionTuple) typeSlice() []dgo.Value {
 	return as
 }
 
-func (t exactFunctionType) Assignable(other dgo.Type) bool {
-	return Assignable(nil, t, other)
-}
-
-func (t exactFunctionType) DeepAssignable(guard dgo.RecursionGuard, other dgo.Type) bool {
-	return functionTypeAssignable(guard, t, other)
-}
-
-func (t exactFunctionType) Equals(other interface{}) bool {
-	if ot, ok := Value(other).(dgo.FunctionType); ok {
-		return t.In().Equals(ot.In()) && t.Out().Equals(ot.Out())
-	}
-	return false
-}
-
-func (t exactFunctionType) HashCode() int {
-	h := int(dgo.TiFunction)
-	h = h*31 + t.In().HashCode()
-	h = h*31 + t.Out().HashCode()
-	return h
-}
-
-func (t exactFunctionType) In() dgo.TupleType {
-	rt := t.funcType
-	return &exactFunctionTuple{count: rt.NumIn, element: rt.In, variadic: rt.IsVariadic()}
-}
-
-func (t exactFunctionType) Instance(value interface{}) bool {
-	if ov, ok := Value(value).(dgo.Function); ok {
-		return t.Assignable(ov.Type())
-	}
-	return false
-}
-
-func (t exactFunctionType) ReflectType() reflect.Type {
-	return t.funcType
-}
-
-func (t exactFunctionType) Out() dgo.TupleType {
-	rt := t.funcType
-	return &exactFunctionTuple{count: rt.NumOut, element: rt.Out, variadic: false}
-}
-
-func (t exactFunctionType) String() string {
-	return TypeString(t)
-}
-
-func (t exactFunctionType) Type() dgo.Type {
-	return &metaType{t}
-}
-
-func (t exactFunctionType) TypeIdentifier() dgo.TypeIdentifier {
-	return dgo.TiFunction
-}
-
-func (t exactFunctionType) Variadic() bool {
-	return t.funcType.IsVariadic()
-}
-
 // DefaultFunctionType is a function that without any constraints on arguments or return value
 var DefaultFunctionType = &functionType{arguments: DefaultTupleType, returns: DefaultTupleType}
 
@@ -204,19 +137,22 @@ func FunctionType(args dgo.TupleType, returns dgo.TupleType) dgo.FunctionType {
 	return &functionType{arguments: args, returns: returns}
 }
 
-func (t *functionType) Assignable(other dgo.Type) bool {
+func (t *functionType) Assignable(other interface{}) bool {
 	return Assignable(nil, t, other)
 }
 
-func (t *functionType) DeepAssignable(guard dgo.RecursionGuard, other dgo.Type) bool {
+func (t *functionType) DeepAssignable(guard dgo.RecursionGuard, other dgo.Value) bool {
 	return functionTypeAssignable(guard, t, other)
 }
 
-func functionTypeAssignable(guard dgo.RecursionGuard, t dgo.FunctionType, other dgo.Type) bool {
+func functionTypeAssignable(guard dgo.RecursionGuard, t dgo.FunctionType, other interface{}) bool {
 	if ot, ok := other.(dgo.FunctionType); ok {
 		return t.Variadic() == ot.Variadic() &&
 			tupleAssignableTuple(guard, t.In(), ot.In()) &&
 			tupleAssignableTuple(guard, t.Out(), ot.Out())
+	}
+	if b, ok := toReflected(other); ok {
+		return reflect.Func == b.Kind() && functionTypeAssignable(guard, t, &goFuncType{b.Type()})
 	}
 	return CheckAssignableTo(guard, other, t)
 }
@@ -247,14 +183,6 @@ func (t *functionType) In() dgo.TupleType {
 	return t.arguments
 }
 
-func (t *functionType) Instance(value interface{}) bool {
-	other := Value(value)
-	if ov, ok := other.(dgo.Function); ok {
-		return t.Assignable(ov.Type())
-	}
-	return false
-}
-
 func (t *functionType) Out() dgo.TupleType {
 	return t.returns
 }
@@ -268,10 +196,6 @@ func (t *functionType) String() string {
 	return TypeString(t)
 }
 
-func (t *functionType) Type() dgo.Type {
-	return &metaType{t}
-}
-
 func (t *functionType) Variadic() bool {
 	return t.arguments.Variadic()
 }
@@ -280,22 +204,57 @@ func (t *functionType) TypeIdentifier() dgo.TypeIdentifier {
 	return dgo.TiFunction
 }
 
-func (f *goFunc) Equals(other interface{}) bool {
-	if ov, ok := other.(*goFunc); ok {
-		return (*reflect.Value)(f).Pointer() == (*reflect.Value)(ov).Pointer()
-	}
-	if b, ok := toReflected(other); ok {
-		return reflect.Func == b.Kind() && (*reflect.Value)(f).Pointer() == b.Pointer()
+func (f *goFuncType) Assignable(other interface{}) bool {
+	return Assignable(nil, f, other)
+}
+
+func (f *goFuncType) DeepAssignable(guard dgo.RecursionGuard, other interface{}) bool {
+	return functionTypeAssignable(guard, f, other)
+}
+
+func (f *goFuncType) Equals(other interface{}) bool {
+	if ov, ok := other.(*goFuncType); ok {
+		return f.Type == ov.Type
 	}
 	return false
 }
 
-func (f *goFunc) Type() dgo.Type {
-	return &exactFunctionType{(*reflect.Value)(f).Type()}
+func (f *goFuncType) HashCode() int {
+	return int(reflect.ValueOf(f.Type).Pointer())
 }
 
-func (f *goFunc) HashCode() int {
-	return int((*reflect.Value)(f).Pointer())
+func (f *goFuncType) In() dgo.TupleType {
+	rt := f.Type
+	return &exactFunctionTuple{count: rt.NumIn, element: rt.In, variadic: rt.IsVariadic()}
+}
+
+func (f *goFuncType) ReflectType() reflect.Type {
+	return f.Type
+}
+
+func (f *goFuncType) Out() dgo.TupleType {
+	rt := f.Type
+	return &exactFunctionTuple{count: rt.NumOut, element: rt.Out, variadic: false}
+}
+
+func (f *goFuncType) String() string {
+	return TypeString(f)
+}
+
+func (f *goFuncType) TypeIdentifier() dgo.TypeIdentifier {
+	return dgo.TiFunction
+}
+
+func (f *goFuncType) Variadic() bool {
+	return f.Type.IsVariadic()
+}
+
+func (f *goFunc) Assignable(other interface{}) bool {
+	return Assignable(nil, f, other)
+}
+
+func (f *goFunc) DeepAssignable(guard dgo.RecursionGuard, other interface{}) bool {
+	return functionTypeAssignable(guard, f, other)
 }
 
 func (f *goFunc) Call(args dgo.Array) []dgo.Value {
@@ -353,10 +312,46 @@ func (f *goFunc) Call(args dgo.Array) []dgo.Value {
 	return convertReturn(m.Call(rr))
 }
 
+func (f *goFunc) Equals(other interface{}) bool {
+	if ov, ok := other.(*goFunc); ok {
+		return (*reflect.Value)(f).Pointer() == (*reflect.Value)(ov).Pointer()
+	}
+	if b, ok := toReflected(other); ok {
+		return reflect.Func == b.Kind() && (*reflect.Value)(f).Pointer() == b.Pointer()
+	}
+	return false
+}
+
 func (f *goFunc) GoFunc() interface{} {
 	return (*reflect.Value)(f).Interface()
 }
 
+func (f *goFunc) HashCode() int {
+	return int((*reflect.Value)(f).Pointer())
+}
+
+func (f *goFunc) In() dgo.TupleType {
+	rt := (*reflect.Value)(f).Type()
+	return &exactFunctionTuple{count: rt.NumIn, element: rt.In, variadic: rt.IsVariadic()}
+}
+
+func (f *goFunc) ReflectType() reflect.Type {
+	return (*reflect.Value)(f).Type()
+}
+
+func (f *goFunc) Out() dgo.TupleType {
+	rt := (*reflect.Value)(f).Type()
+	return &exactFunctionTuple{count: rt.NumOut, element: rt.Out, variadic: false}
+}
+
 func (f *goFunc) String() string {
 	return (*reflect.Value)(f).String()
+}
+
+func (f *goFunc) TypeIdentifier() dgo.TypeIdentifier {
+	return dgo.TiFunction
+}
+
+func (f *goFunc) Variadic() bool {
+	return f.ReflectType().IsVariadic()
 }

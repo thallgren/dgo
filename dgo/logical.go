@@ -6,18 +6,18 @@ type (
 
 	// UnaryType represents a type that applies an operation on another type
 	UnaryType interface {
-		Type
+		Value
 
 		// Operator returns the unary operator OpNot
 		Operator() TypeOp
 
 		// Operand returns the operand type
-		Operand() Type
+		Operand() Value
 	}
 
 	// TernaryType represents a collection of types using a logical operator
 	TernaryType interface {
-		Type
+		Value
 
 		// Operator returns the ternary operator OpAnd or OpOr
 		Operator() TypeOp

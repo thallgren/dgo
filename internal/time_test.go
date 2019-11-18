@@ -13,8 +13,8 @@ import (
 func TestTimeDefault(t *testing.T) {
 	tp := typ.Time
 	ts := time.Now()
-	require.Instance(t, tp, ts)
-	require.NotInstance(t, tp, `r`)
+	require.Assignable(t, tp, ts)
+	require.NotAssignable(t, tp, `r`)
 	require.Assignable(t, tp, tp)
 	require.NotAssignable(t, tp, typ.String)
 
@@ -23,8 +23,6 @@ func TestTimeDefault(t *testing.T) {
 
 	require.Equal(t, tp.HashCode(), tp.HashCode())
 	require.NotEqual(t, 0, tp.HashCode())
-
-	require.Instance(t, tp.Type(), tp)
 
 	require.Equal(t, `time`, tp.String())
 
@@ -35,24 +33,23 @@ func TestTimeType_New(t *testing.T) {
 	ts, _ := time.Parse(time.RFC3339, `2019-11-11T17:57:00-00:00`)
 	tv := vf.Time(ts)
 	require.Same(t, tv, vf.New(typ.Time, tv))
-	require.Same(t, tv, vf.New(tv.Type(), tv))
-	require.Same(t, tv, vf.New(tv.Type(), vf.Arguments(tv)))
+	require.Same(t, tv, vf.New(tv, tv))
+	require.Same(t, tv, vf.New(tv, vf.Arguments(tv)))
 	require.Equal(t, tv, vf.New(typ.Time, vf.Integer(tv.GoTime().Unix())))
 	require.Equal(t, tv, vf.New(typ.Time, vf.Float(tv.SecondsWithFraction())))
 
 	require.Equal(t, tv, vf.New(typ.Time, vf.String(`2019-11-11T17:57:00-00:00`)))
 
-	require.Panic(t, func() { vf.New(tv.Type(), vf.String(`2019-10-06T07:15:00-07:00`)) }, `cannot be assigned`)
+	require.Panic(t, func() { vf.New(tv, vf.String(`2019-10-06T07:15:00-07:00`)) }, `cannot be assigned`)
 	require.Panic(t, func() { vf.New(typ.Time, vf.Sensitive(5)) }, `illegal argument`)
 }
 
 func TestTimeExact(t *testing.T) {
 	now := time.Now()
-	ts := vf.Value(now)
-	tp := ts.Type()
-	require.Instance(t, tp, ts)
-	require.NotInstance(t, tp, now.Add(1))
-	require.NotInstance(t, tp, now.String())
+	tp := vf.Value(now)
+	require.Assignable(t, tp, tp)
+	require.NotAssignable(t, tp, now.Add(1))
+	require.NotAssignable(t, tp, now.String())
 	require.Assignable(t, typ.Time, tp)
 	require.Assignable(t, tp, tp)
 	require.NotAssignable(t, tp, typ.Time)
@@ -63,8 +60,6 @@ func TestTimeExact(t *testing.T) {
 
 	require.Equal(t, tp.HashCode(), tp.HashCode())
 	require.NotEqual(t, 0, tp.HashCode())
-
-	require.Instance(t, tp.Type(), tp)
 
 	require.Same(t, typ.Time, typ.Generic(tp))
 

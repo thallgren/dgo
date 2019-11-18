@@ -35,7 +35,7 @@ type (
 
 	// FunctionType describes a Function
 	FunctionType interface {
-		Type
+		Value
 
 		// In returns the tuple that describes the arguments
 		In() TupleType

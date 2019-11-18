@@ -13,7 +13,7 @@ import (
 var reflectValueType = reflect.TypeOf((*dgo.Value)(nil)).Elem()
 
 // New creates an instance of the given type from the given argument
-func New(typ dgo.Type, argument dgo.Value) dgo.Value {
+func New(typ dgo.Value, argument dgo.Value) dgo.Value {
 	if nt, ok := typ.(dgo.Factory); ok {
 		return nt.New(argument)
 	}
@@ -23,7 +23,7 @@ func New(typ dgo.Type, argument dgo.Value) dgo.Value {
 		}
 		argument = args.Get(0)
 	}
-	if typ.Instance(argument) {
+	if typ.Assignable(argument) {
 		return argument
 	}
 	panic(fmt.Errorf(`unable to create a %s from %s`, typ, argument))
@@ -75,7 +75,7 @@ func value(v interface{}) dgo.Value {
 	if dv == nil {
 		if i, ok := ToInt(v); ok {
 			dv = intVal(i)
-		} else if f, ok := ToFloat(v); ok {
+		} else if f, fok := ToFloat(v); fok {
 			dv = floatVal(f)
 		}
 	}
@@ -163,10 +163,10 @@ func ReflectTo(src dgo.Value, dest reflect.Value) {
 }
 
 // Add well known types like regexp, time, etc. here
-var wellKnownTypes map[reflect.Type]dgo.Type
+var wellKnownTypes map[reflect.Type]dgo.Value
 
 func init() {
-	wellKnownTypes = map[reflect.Type]dgo.Type{
+	wellKnownTypes = map[reflect.Type]dgo.Value{
 		reflect.TypeOf(&regexp.Regexp{}): DefaultRegexpType,
 		reflect.TypeOf(time.Time{}):      DefaultTimeType,
 	}

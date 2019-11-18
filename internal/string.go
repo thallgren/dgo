@@ -26,11 +26,8 @@ type (
 	// defaultDgoStringType represents strings that conform to Dgo type syntax
 	defaultDgoStringType int
 
-	// exactStringType only represents its own string
-	exactStringType hstring
-
 	ciStringType struct {
-		exactStringType
+		hstring
 	}
 
 	// patternType constrains its instances to those that match the regexp pattern
@@ -68,7 +65,7 @@ func newString(t dgo.StringType, arg dgo.Value) dgo.String {
 		}
 	}
 
-	if !t.Instance(s) {
+	if !t.Assignable(s) {
 		panic(IllegalAssignment(t, s))
 	}
 	return s
@@ -76,10 +73,6 @@ func newString(t dgo.StringType, arg dgo.Value) dgo.String {
 
 func (t defaultDgoStringType) String() string {
 	return TypeString(t)
-}
-
-func (t defaultDgoStringType) Type() dgo.Type {
-	return &metaType{t}
 }
 
 func (t defaultDgoStringType) Equals(other interface{}) bool {
@@ -90,35 +83,29 @@ func (t defaultDgoStringType) HashCode() int {
 	return int(dgo.TiDgoString)
 }
 
-func (t defaultDgoStringType) Assignable(other dgo.Type) bool {
+func (t defaultDgoStringType) Assignable(other interface{}) bool {
 	if t == other {
 		return true
 	}
-	if ot, ok := other.(*exactStringType); ok {
-		return t.Instance(ot.s)
+	switch other := other.(type) {
+	case *hstring:
+		return t.IsInstance(other.s)
+	case string:
+		return t.IsInstance(other)
+	default:
+		return CheckAssignableTo(nil, other, t)
 	}
-	return CheckAssignableTo(nil, other, t)
 }
 
-func (t defaultDgoStringType) Instance(value interface{}) (ok bool) {
-	var s string
-	var ov *hstring
-	ov, ok = value.(*hstring)
+func (t defaultDgoStringType) IsInstance(s string) (ok bool) {
+	ok = len(s) > 0
 	if ok {
-		s = ov.s
-	} else {
-		s, ok = value.(string)
-	}
-	if ok {
-		ok = len(s) > 0
-		if ok {
-			defer func() {
-				if recover() != nil {
-					ok = false
-				}
-			}()
-			Parse(s)
-		}
+		defer func() {
+			if recover() != nil {
+				ok = false
+			}
+		}()
+		Parse(s)
 	}
 	return
 }
@@ -156,23 +143,23 @@ const DefaultDgoStringType = defaultDgoStringType(0)
 var reflectStringType = reflect.TypeOf(` `)
 
 // EnumType returns a StringType that represents all of the given strings
-func EnumType(strings []string) dgo.Type {
+func EnumType(strings []string) dgo.Value {
 	switch len(strings) {
 	case 0:
 		return &notType{DefaultAnyType}
 	case 1:
-		return (*exactStringType)(makeHString(strings[0]))
+		return makeHString(strings[0])
 	}
 	ts := make([]dgo.Value, len(strings))
 	for i := range strings {
-		ts[i] = (*exactStringType)(makeHString(strings[i]))
+		ts[i] = makeHString(strings[i])
 	}
 	return &anyOfType{slice: ts, frozen: true}
 }
 
 // CiEnumType returns a StringType that represents all strings that are equal to one of the given strings
 // under Unicode case-folding.
-func CiEnumType(strings []string) dgo.Type {
+func CiEnumType(strings []string) dgo.Value {
 	switch len(strings) {
 	case 0:
 		return &notType{DefaultAnyType}
@@ -191,9 +178,9 @@ func String(s string) dgo.String {
 	return makeHString(s)
 }
 
-func (t defaultStringType) Assignable(other dgo.Type) bool {
+func (t defaultStringType) Assignable(other interface{}) bool {
 	switch other.(type) {
-	case defaultStringType, defaultDgoStringType, *exactStringType, *ciStringType, *sizedStringType, *patternType:
+	case *hstring, string, defaultStringType, defaultDgoStringType, *ciStringType, *sizedStringType, *patternType:
 		return true
 	}
 	return CheckAssignableTo(nil, other, t)
@@ -207,14 +194,8 @@ func (t defaultStringType) HashCode() int {
 	return int(dgo.TiString)
 }
 
-func (t defaultStringType) Instance(value interface{}) bool {
-	if _, ok := value.(*hstring); ok {
-		return true
-	}
-	if _, ok := value.(string); ok {
-		return true
-	}
-	return false
+func (t defaultStringType) IsInstance(s string) bool {
+	return true
 }
 
 func (t defaultStringType) Max() int {
@@ -237,84 +218,12 @@ func (t defaultStringType) ReflectType() reflect.Type {
 	return reflectStringType
 }
 
-func (t defaultStringType) Type() dgo.Type {
-	return &metaType{t}
-}
-
 func (t defaultStringType) TypeIdentifier() dgo.TypeIdentifier {
 	return dgo.TiString
 }
 
 func (t defaultStringType) Unbounded() bool {
 	return true
-}
-
-func (t *exactStringType) Assignable(other dgo.Type) bool {
-	if ot, ok := other.(*exactStringType); ok {
-		return t.s == ot.s
-	}
-	return CheckAssignableTo(nil, other, t)
-}
-
-func (t *exactStringType) Equals(v interface{}) bool {
-	if ov, ok := v.(*exactStringType); ok {
-		return t.s == ov.s
-	}
-	return false
-}
-
-func (t *exactStringType) Generic() dgo.Type {
-	return DefaultStringType
-}
-
-func (t *exactStringType) HashCode() int {
-	return (*hstring)(t).HashCode() * 5
-}
-
-func (t *exactStringType) Instance(v interface{}) bool {
-	if ov, ok := v.(*hstring); ok {
-		return t.s == ov.s
-	}
-	if ov, ok := v.(string); ok {
-		return t.s == ov
-	}
-	return false
-}
-
-func (t *exactStringType) Max() int {
-	return len(t.s)
-}
-
-func (t *exactStringType) Min() int {
-	return len(t.s)
-}
-
-func (t *exactStringType) New(arg dgo.Value) dgo.Value {
-	return newString(t, arg)
-}
-
-func (t *exactStringType) String() string {
-	return TypeString(t)
-}
-
-func (t *exactStringType) ReflectType() reflect.Type {
-	return reflectStringType
-}
-
-func (t *exactStringType) Type() dgo.Type {
-	return &metaType{t}
-}
-
-func (t *exactStringType) TypeIdentifier() dgo.TypeIdentifier {
-	return dgo.TiStringExact
-}
-
-func (t *exactStringType) Unbounded() bool {
-	return false
-}
-
-func (t *exactStringType) Value() dgo.Value {
-	return makeHString(t.s)
 }
 
 // CiStringType returns a StringType that is constrained to strings that are equal to the given string under
@@ -326,17 +235,20 @@ func CiStringType(si interface{}) dgo.StringType {
 	} else {
 		s = si.(string)
 	}
-	return &ciStringType{exactStringType: exactStringType{s: strings.ToLower(s)}}
+	return &ciStringType{hstring: hstring{s: strings.ToLower(s)}}
 }
 
-func (t *ciStringType) Assignable(other dgo.Type) bool {
-	if ot, ok := other.(*exactStringType); ok {
-		return strings.EqualFold(t.s, ot.s)
+func (t *ciStringType) Assignable(other interface{}) bool {
+	switch other := other.(type) {
+	case *hstring:
+		return strings.EqualFold(t.s, other.s)
+	case string:
+		return strings.EqualFold(t.s, other)
+	case ciStringType:
+		return t.s == other.s
+	default:
+		return CheckAssignableTo(nil, other, t)
 	}
-	if ot, ok := other.(*ciStringType); ok {
-		return t.s == ot.s
-	}
-	return CheckAssignableTo(nil, other, t)
 }
 
 func (t *ciStringType) Equals(v interface{}) bool {
@@ -346,22 +258,12 @@ func (t *ciStringType) Equals(v interface{}) bool {
 	return false
 }
 
-func (t *ciStringType) Instance(v interface{}) bool {
-	if ov, ok := v.(*hstring); ok {
-		return strings.EqualFold(t.s, ov.s)
-	}
-	if ov, ok := v.(string); ok {
-		return strings.EqualFold(t.s, ov)
-	}
-	return false
+func (t *ciStringType) IsInstance(s string) bool {
+	return strings.EqualFold(t.s, s)
 }
 
 func (t *ciStringType) New(arg dgo.Value) dgo.Value {
 	return newString(t, arg)
-}
-
-func (t *ciStringType) Type() dgo.Type {
-	return &metaType{t}
 }
 
 func (t *ciStringType) TypeIdentifier() dgo.TypeIdentifier {
@@ -370,7 +272,7 @@ func (t *ciStringType) TypeIdentifier() dgo.TypeIdentifier {
 
 // PatternType returns a StringType that is constrained to strings that match the given
 // regular expression pattern
-func PatternType(pattern *regexp.Regexp) dgo.Type {
+func PatternType(pattern *regexp.Regexp) dgo.Value {
 	return &patternType{Regexp: pattern}
 }
 
@@ -385,8 +287,8 @@ func StringType(args []interface{}) dgo.StringType {
 		return DefaultStringType
 	case 1:
 		switch a0 := Value(args[0]).(type) {
-		case dgo.String:
-			return a0.Type().(dgo.StringType) // Exact string type
+		case dgo.StringType:
+			return a0
 		case dgo.Integer:
 			return SizedStringType(int(a0.GoInt()), math.MaxInt64)
 		}
@@ -404,39 +306,31 @@ func StringType(args []interface{}) dgo.StringType {
 	panic(illegalArgumentCount(`StringType`, 0, 2, len(args)))
 }
 
-func (t *patternType) Assignable(other dgo.Type) bool {
+func (t *patternType) Assignable(other interface{}) bool {
 	switch ot := other.(type) {
-	case *exactStringType:
+	case *hstring:
 		return t.IsInstance(ot.s)
+	case string:
+		return t.IsInstance(ot)
 	case *patternType:
-		return t.String() == ot.String()
+		return t.Regexp.String() == ot.Regexp.String()
 	}
 	return CheckAssignableTo(nil, other, t)
 }
 
 func (t *patternType) Equals(v interface{}) bool {
 	if ov, ok := v.(*patternType); ok {
-		return t.String() == ov.String()
+		return t.Regexp.String() == ov.Regexp.String()
 	}
 	return false
 }
 
-func (t *patternType) Generic() dgo.Type {
+func (t *patternType) Generic() dgo.Value {
 	return DefaultStringType
 }
 
 func (t *patternType) HashCode() int {
 	return util.StringHash(t.String())
-}
-
-func (t *patternType) Instance(v interface{}) bool {
-	if sv, ok := v.(*hstring); ok {
-		return t.MatchString(sv.s)
-	}
-	if sv, ok := v.(string); ok {
-		return t.MatchString(sv)
-	}
-	return false
 }
 
 func (t *patternType) IsInstance(v string) bool {
@@ -459,8 +353,8 @@ func (t *patternType) ReflectType() reflect.Type {
 	return reflectStringType
 }
 
-func (t *patternType) Type() dgo.Type {
-	return &metaType{t}
+func (t *patternType) GoRegexp() *regexp.Regexp {
+	return t.Regexp
 }
 
 func (t *patternType) String() string {
@@ -473,10 +367,6 @@ func (t *patternType) TypeIdentifier() dgo.TypeIdentifier {
 
 func (t *patternType) Unbounded() bool {
 	return true
-}
-
-func (t *patternType) Value() dgo.Value {
-	return (*regexpVal)(t.Regexp)
 }
 
 // SizedStringType returns a StringType that is constrained to strings whose length is within the
@@ -496,12 +386,14 @@ func SizedStringType(min, max int) dgo.StringType {
 	return &sizedStringType{min: min, max: max}
 }
 
-func (t *sizedStringType) Assignable(other dgo.Type) bool {
+func (t *sizedStringType) Assignable(other interface{}) bool {
 	switch ot := other.(type) {
 	case defaultDgoStringType:
 		return t.min <= 1
-	case *exactStringType:
+	case *hstring:
 		return t.IsInstance(ot.s)
+	case string:
+		return t.IsInstance(ot)
 	case *ciStringType:
 		return t.IsInstance(ot.s)
 	case *sizedStringType:
@@ -526,16 +418,6 @@ func (t *sizedStringType) HashCode() int {
 		h = h*31 + t.max
 	}
 	return h
-}
-
-func (t *sizedStringType) Instance(v interface{}) bool {
-	if sv, ok := v.(*hstring); ok {
-		return t.IsInstance(sv.s)
-	}
-	if sv, ok := v.(string); ok {
-		return t.IsInstance(sv)
-	}
-	return false
 }
 
 func (t *sizedStringType) IsInstance(v string) bool {
@@ -563,10 +445,6 @@ func (t *sizedStringType) String() string {
 	return TypeString(t)
 }
 
-func (t *sizedStringType) Type() dgo.Type {
-	return &metaType{t}
-}
-
 func (t *sizedStringType) TypeIdentifier() dgo.TypeIdentifier {
 	return dgo.TiStringSized
 }
@@ -577,6 +455,10 @@ func (t *sizedStringType) Unbounded() bool {
 
 func makeHString(s string) *hstring {
 	return &hstring{s: s}
+}
+
+func (v *hstring) Assignable(other interface{}) bool {
+	return v.Equals(other) || CheckAssignableTo(nil, other, v)
 }
 
 func (v *hstring) AppendTo(w dgo.Indenter) {
@@ -624,6 +506,10 @@ func (v *hstring) Equals(other interface{}) bool {
 	return false
 }
 
+func (v *hstring) Generic() dgo.Value {
+	return DefaultStringType
+}
+
 func (v *hstring) GoString() string {
 	return v.s
 }
@@ -633,6 +519,22 @@ func (v *hstring) HashCode() int {
 		v.h = util.StringHash(v.s)
 	}
 	return v.h
+}
+
+func (v *hstring) IsInstance(s string) bool {
+	return v.s == s
+}
+
+func (v *hstring) Max() int {
+	return len(v.s)
+}
+
+func (v *hstring) Min() int {
+	return len(v.s)
+}
+
+func (v *hstring) New(arg dgo.Value) dgo.Value {
+	return newString(v, arg)
 }
 
 func (v *hstring) ReflectTo(value reflect.Value) {
@@ -646,10 +548,18 @@ func (v *hstring) ReflectTo(value reflect.Value) {
 	}
 }
 
+func (v *hstring) ReflectType() reflect.Type {
+	return reflectStringType
+}
+
 func (v *hstring) String() string {
 	return v.s
 }
 
-func (v *hstring) Type() dgo.Type {
-	return (*exactStringType)(v)
+func (v *hstring) TypeIdentifier() dgo.TypeIdentifier {
+	return dgo.TiStringExact
+}
+
+func (v *hstring) Unbounded() bool {
+	return false
 }

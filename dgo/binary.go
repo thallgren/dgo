@@ -3,6 +3,7 @@ package dgo
 type (
 	// BinaryType is the type that represents a Binary value
 	BinaryType interface {
+		Value
 		SizedType
 		Factory
 

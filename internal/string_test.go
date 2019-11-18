@@ -15,11 +15,11 @@ import (
 
 func TestPattern(t *testing.T) {
 	tp := tf.Pattern(regexp.MustCompile(`^doh$`)).(dgo.StringType)
-	require.Instance(t, tp, `doh`)
-	require.Instance(t, tp, vf.Value(`doh`))
-	require.NotInstance(t, tp, `dog`)
-	require.NotInstance(t, tp, vf.Value(`dog`))
-	require.NotInstance(t, tp, 3)
+	require.Assignable(t, tp, `doh`)
+	require.Assignable(t, tp, vf.Value(`doh`))
+	require.NotAssignable(t, tp, `dog`)
+	require.NotAssignable(t, tp, vf.Value(`dog`))
+	require.NotAssignable(t, tp, 3)
 	require.Assignable(t, typ.String, tp)
 	require.Assignable(t, tf.Pattern(regexp.MustCompile(`^doh$`)), tp)
 	require.NotAssignable(t, tf.String(3, 3), tp)
@@ -35,8 +35,6 @@ func TestPattern(t *testing.T) {
 
 	require.NotEqual(t, 0, tp.HashCode())
 	require.Equal(t, tp.HashCode(), tf.Pattern(regexp.MustCompile(`^doh$`)).HashCode())
-
-	require.Instance(t, tp.Type(), tp)
 
 	require.Equal(t, `/^doh$/`, tp.String())
 
@@ -64,11 +62,10 @@ func TestPattern(t *testing.T) {
 
 func TestStringDefault(t *testing.T) {
 	tp := typ.String
-	require.Instance(t, tp, `doh`)
-	require.NotInstance(t, tp, 1)
+	require.Assignable(t, tp, `doh`)
+	require.NotAssignable(t, tp, 1)
 	require.Assignable(t, tp, tp)
 	require.Assignable(t, tp, typ.DgoString)
-	require.Instance(t, tp.Type(), tp)
 	require.Assignable(t, tp, tf.Pattern(regexp.MustCompile(`^doh$`)))
 	require.NotAssignable(t, tf.String(3, 3), tp)
 	require.NotAssignable(t, tf.Enum(`doh`), tp)
@@ -87,11 +84,10 @@ func TestStringDefault(t *testing.T) {
 }
 
 func TestStringExact(t *testing.T) {
-	tp := vf.Value(`doh`).Type().(dgo.StringType)
-	require.Instance(t, tp, `doh`)
-	require.NotInstance(t, tp, `duh`)
-	require.NotInstance(t, tp, 3)
-	require.Instance(t, tp.Type(), tp)
+	tp := vf.Value(`doh`).(dgo.StringType)
+	require.Assignable(t, tp, `doh`)
+	require.NotAssignable(t, tp, `duh`)
+	require.NotAssignable(t, tp, 3)
 	require.Assignable(t, typ.String, tp)
 	require.Assignable(t, tp, tp)
 	require.Assignable(t, tf.String(3, 3), tp)
@@ -102,9 +98,9 @@ func TestStringExact(t *testing.T) {
 	require.NotAssignable(t, tp, tf.Pattern(regexp.MustCompile(`^doh$`)))
 	require.NotAssignable(t, tp, typ.String)
 	require.NotAssignable(t, tp, typ.Integer)
-	require.Equal(t, tp, vf.Value(`doh`).Type())
-	require.NotEqual(t, tp, vf.Value(`duh`).Type())
-	require.NotEqual(t, tp, vf.Value(3).Type())
+	require.Equal(t, tp, vf.Value(`doh`))
+	require.NotEqual(t, tp, vf.Value(`duh`))
+	require.NotEqual(t, tp, vf.Value(3))
 
 	require.Equal(t, 3, tp.Min())
 	require.Equal(t, 3, tp.Max())
@@ -123,15 +119,13 @@ func TestCiString(t *testing.T) {
 	tp := tf.CiString(`abc`)
 	require.Equal(t, tp, tp)
 	require.Equal(t, tp, tf.CiString(`ABC`))
-	require.NotEqual(t, tp, vf.String(`abc`).Type())
+	require.NotEqual(t, tp, vf.String(`abc`))
 
-	require.Instance(t, tp, `abc`)
-	require.Instance(t, tp, `ABC`)
-	require.Instance(t, tp, vf.String(`aBc`))
-	require.NotInstance(t, tp, `cde`)
-	require.NotInstance(t, tp, []byte(`abc`))
-
-	require.Instance(t, tp.Type(), tp)
+	require.Assignable(t, tp, `abc`)
+	require.Assignable(t, tp, `ABC`)
+	require.Assignable(t, tp, vf.String(`aBc`))
+	require.NotAssignable(t, tp, `cde`)
+	require.NotAssignable(t, tp, []byte(`abc`))
 }
 
 func TestString_badOneArg(t *testing.T) {
@@ -155,7 +149,7 @@ func TestStringType(t *testing.T) {
 	require.Same(t, tp, typ.String)
 
 	tp = tf.String(`hello`)
-	require.Equal(t, tp, vf.String(`hello`).Type())
+	require.Equal(t, tp, vf.String(`hello`))
 
 	tp = tf.String(1)
 	require.Equal(t, tp, tf.String(1, math.MaxInt64))
@@ -165,13 +159,12 @@ func TestStringType(t *testing.T) {
 	require.NotAssignable(t, tp, typ.DgoString)
 
 	tp = tf.String(3, 5)
-	require.Instance(t, tp, `doh`)
-	require.NotInstance(t, tp, `do`)
-	require.Instance(t, tp, `dudoh`)
-	require.Instance(t, tp, vf.Value(`dudoh`))
-	require.NotInstance(t, tp, `duhdoh`)
-	require.NotInstance(t, tp, 3)
-	require.Instance(t, tp.Type(), tp)
+	require.Assignable(t, tp, `doh`)
+	require.NotAssignable(t, tp, `do`)
+	require.Assignable(t, tp, `dudoh`)
+	require.Assignable(t, tp, vf.Value(`dudoh`))
+	require.NotAssignable(t, tp, `duhdoh`)
+	require.NotAssignable(t, tp, 3)
 	require.Assignable(t, typ.String, tp)
 	require.Assignable(t, tp, tp)
 	require.Assignable(t, tp, tf.String(3, 3))
@@ -189,7 +182,7 @@ func TestStringType(t *testing.T) {
 	require.Equal(t, tf.String(-3, 3), tf.String(0, 3))
 	require.NotEqual(t, tp, tf.String(3, 4))
 	require.NotEqual(t, tp, tf.String(2, 5))
-	require.NotEqual(t, tp, vf.Value(3).Type())
+	require.NotEqual(t, tp, vf.Value(3))
 
 	require.Equal(t, 3, tp.Min())
 	require.Equal(t, 5, tp.Max())
@@ -210,7 +203,7 @@ func TestStringType_New(t *testing.T) {
 	require.Equal(t, `A`, vf.New(tf.CiString(`a`), vf.String(`A`)))
 	require.Equal(t, `string`, vf.New(typ.DgoString, vf.String(`string`)))
 	require.Panic(t, func() { vf.New(tf.CiString(`a`), vf.String(`b`)) }, `cannot be assigned`)
-	require.Panic(t, func() { vf.New(vf.String(`a`).Type(), vf.String(`b`)) }, `cannot be assigned`)
+	require.Panic(t, func() { vf.New(vf.String(`a`), vf.String(`b`)) }, `cannot be assigned`)
 	require.Panic(t, func() { vf.New(tf.Pattern(regexp.MustCompile(`a`)), vf.String(`d`)) }, `cannot be assigned`)
 	require.Panic(t, func() { vf.New(tf.String(2, 3), vf.String(`d`)) }, `cannot be assigned`)
 }
@@ -220,26 +213,24 @@ func TestDgoStringType(t *testing.T) {
 	require.Equal(t, typ.DgoString, typ.DgoString)
 	require.NotEqual(t, typ.DgoString, typ.String)
 	require.NotAssignable(t, typ.DgoString, tf.OneOf(typ.DgoString, typ.String))
-	require.Instance(t, typ.DgoString.Type(), typ.DgoString)
 
 	s := `dgo`
-	require.Assignable(t, typ.DgoString, vf.String(s).Type())
-	require.Instance(t, typ.DgoString, s)
-	require.Instance(t, typ.DgoString, vf.String(s))
+	require.Assignable(t, typ.DgoString, vf.String(s))
+	require.Assignable(t, typ.DgoString, s)
+	require.Assignable(t, typ.DgoString, vf.String(s))
 
 	s = `map[string]1..3`
-	require.Instance(t, typ.DgoString, s)
-	require.Instance(t, typ.DgoString, vf.String(s))
-	require.Assignable(t, typ.DgoString, vf.String(s).Type())
+	require.Assignable(t, typ.DgoString, s)
+	require.Assignable(t, typ.DgoString, vf.String(s))
+	require.Assignable(t, typ.DgoString, vf.String(s))
 	require.False(t, typ.DgoString.Unbounded())
 	require.Equal(t, 1, typ.DgoString.Min())
 	require.Equal(t, math.MaxInt64, typ.DgoString.Max())
 	require.Equal(t, `dgo`, typ.DgoString.String())
 
 	s = `hello`
-	require.NotInstance(t, typ.DgoString, s)
-	require.NotInstance(t, typ.DgoString, vf.String(s))
-	require.NotAssignable(t, typ.DgoString, vf.String(s).Type())
+	require.NotAssignable(t, typ.DgoString, s)
+	require.NotAssignable(t, typ.DgoString, vf.String(s))
 
 	require.NotEqual(t, 0, typ.DgoString.HashCode())
 	require.Equal(t, typ.String.ReflectType(), typ.DgoString.ReflectType())

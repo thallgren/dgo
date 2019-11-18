@@ -12,15 +12,15 @@ import (
 )
 
 func TestType_String_floatExact(t *testing.T) {
-	require.Equal(t, `1.0`, vf.Value(1.0).Type().String())
+	require.Equal(t, `1.0`, vf.Value(1.0).String())
 }
 
 func TestType_String_stringExact(t *testing.T) {
-	require.Equal(t, `"with \"quotes\" in it"`, vf.Value("with \"quotes\" in it").Type().String())
+	require.Equal(t, `"with \"quotes\" in it"`, vf.Value("with \"quotes\" in it").String())
 }
 
 func TestType_String_arrayExact(t *testing.T) {
-	require.Equal(t, `{1.0,2.3}`, vf.Values(1.0, 2.3).Type().String())
+	require.Equal(t, `{1.0,2.3}`, vf.Values(1.0, 2.3).String())
 }
 
 func TestType_String_arrayUnboundedElementInt(t *testing.T) {
@@ -60,10 +60,10 @@ func TestType_String_arrayBoundedEntryIntRangeEnum(t *testing.T) {
 }
 
 func TestType_String_priorities(t *testing.T) {
-	var tp dgo.Type = tf.Array(tf.String(1), 2, 2)
+	var tp dgo.Value = tf.Array(tf.String(1), 2, 2)
 	require.Equal(t, `[2,2]string[1]`, tp.String())
 
-	tp = tf.Array(vf.Value(regexp.MustCompile(`a`)).Type(), 2, 2)
+	tp = tf.Array(vf.Value(regexp.MustCompile(`a`)), 2, 2)
 	require.Equal(t, `[2,2]regexp["a"]`, tp.String())
 
 	tp = tf.Array(tf.Not(tf.String(1)), 2, 2)
@@ -84,7 +84,7 @@ func TestType_String_priorities(t *testing.T) {
 	tp = tf.Array(tf.OneOf(typ.Integer, typ.String), 2, 2)
 	require.Equal(t, `[2,2](int^string)`, tp.String())
 
-	tp = tf.Array(vf.Values(`a`, `b`).Type().(dgo.ArrayType).ElementType(), 2, 2)
+	tp = tf.Array(vf.Values(`a`, `b`).(dgo.ArrayType).ElementType(), 2, 2)
 	require.Equal(t, `[2,2]("a"&"b")`, tp.String())
 }
 

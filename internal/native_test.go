@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/lyraproj/dgo/tf"
+
 	"github.com/lyraproj/dgo/dgo"
 	"github.com/lyraproj/dgo/internal"
 	"github.com/lyraproj/dgo/typ"
@@ -71,15 +73,14 @@ func TestNativeType(t *testing.T) {
 	c, ok := vf.Value(make(chan bool)).(dgo.Native)
 	require.True(t, ok)
 
-	ct := c.Type()
+	ct := tf.FromReflected(c.ReflectType())
 	require.Assignable(t, ct, ct)
 	require.Assignable(t, typ.Native, ct)
 	require.NotAssignable(t, ct, typ.Native)
 	require.NotAssignable(t, ct, typ.String)
-	require.Instance(t, ct, c)
-	require.Instance(t, typ.Native, c)
-	require.NotInstance(t, typ.Native, vf.String(`ValueOf`))
-	require.Instance(t, ct.Type(), ct)
+	require.Assignable(t, ct, c)
+	require.Assignable(t, typ.Native, c)
+	require.NotAssignable(t, typ.Native, vf.String(`ValueOf`))
 
 	require.Equal(t, ct, ct)
 	require.NotEqual(t, ct, typ.Any)

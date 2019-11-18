@@ -12,21 +12,18 @@ func NewAliasMap() dgo.AliasMap {
 	return &aliasMap{}
 }
 
-func (a *aliasMap) GetName(t dgo.Type) dgo.String {
+func (a *aliasMap) GetName(t dgo.Value) dgo.String {
 	if v := a.typeNames.Get(t); v != nil {
 		return v.(dgo.String)
 	}
 	return nil
 }
 
-func (a *aliasMap) GetType(n dgo.String) dgo.Type {
-	if v := a.namedTypes.Get(n); v != nil {
-		return v.(dgo.Type)
-	}
-	return nil
+func (a *aliasMap) GetType(n dgo.String) dgo.Value {
+	return a.namedTypes.Get(n)
 }
 
-func (a *aliasMap) Add(t dgo.Type, name dgo.String) {
+func (a *aliasMap) Add(t dgo.Value, name dgo.String) {
 	a.typeNames.Put(t, name)
 	a.namedTypes.Put(name, t)
 }

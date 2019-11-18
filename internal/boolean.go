@@ -15,13 +15,7 @@ type (
 )
 
 // DefaultBooleanType is the unconstrained Boolean type
-const DefaultBooleanType = booleanType(-1)
-
-// FalseType is the Boolean type that represents false
-const FalseType = booleanType(0)
-
-// TrueType is the Boolean type that represents false
-const TrueType = booleanType(1)
+const DefaultBooleanType = booleanType(0)
 
 // True is the dgo.Value for true
 const True = boolean(true)
@@ -29,11 +23,13 @@ const True = boolean(true)
 // False is the dgo.Value for false
 const False = boolean(false)
 
-func (t booleanType) Assignable(ot dgo.Type) bool {
-	if ob, ok := ot.(booleanType); ok {
-		return t < 0 || t == ob
+func (t booleanType) Assignable(other interface{}) bool {
+	switch other := other.(type) {
+	case dgo.BooleanType, []byte:
+		return true
+	default:
+		return CheckAssignableTo(nil, other, t)
 	}
-	return CheckAssignableTo(nil, ot, t)
 }
 
 func (t booleanType) Equals(v interface{}) bool {
@@ -44,18 +40,8 @@ func (t booleanType) HashCode() int {
 	return int(t.TypeIdentifier())
 }
 
-func (t booleanType) Instance(v interface{}) bool {
-	if bv, ok := v.(boolean); ok {
-		return t.IsInstance(bool(bv))
-	}
-	if bv, ok := v.(bool); ok {
-		return t.IsInstance(bv)
-	}
-	return false
-}
-
 func (t booleanType) IsInstance(v bool) bool {
-	return t < 0 || (t == 1) == v
+	return true
 }
 
 var boolStringType = CiEnumType([]string{`true`, `false`, `yes`, `no`, `y`, `n`})
@@ -74,8 +60,8 @@ func (t booleanType) New(arg dgo.Value) dgo.Value {
 	case floatVal:
 		return boolean(arg != 0)
 	default:
-		if boolStringType.Instance(arg) {
-			return boolean(trueStringType.Instance(arg))
+		if boolStringType.Assignable(arg) {
+			return boolean(trueStringType.Assignable(arg))
 		}
 		panic(fmt.Errorf(`unable to create a bool from %s`, arg))
 	}
@@ -91,18 +77,18 @@ func (t booleanType) String() string {
 	return TypeString(t)
 }
 
-func (t booleanType) Type() dgo.Type {
-	return &metaType{t}
+func (t booleanType) TypeIdentifier() dgo.TypeIdentifier {
+	return dgo.TiBoolean
 }
 
-func (t booleanType) TypeIdentifier() dgo.TypeIdentifier {
-	switch t {
-	case FalseType:
-		return dgo.TiFalse
-	case TrueType:
-		return dgo.TiTrue
+func (v boolean) Assignable(other interface{}) bool {
+	switch other := other.(type) {
+	case dgo.Boolean:
+		return bool(v) == other.GoBool()
+	case bool:
+		return bool(v) == other
 	default:
-		return dgo.TiBoolean
+		return CheckAssignableTo(nil, other, v)
 	}
 }
 
@@ -147,6 +133,10 @@ func (v boolean) HashCode() int {
 	return 1237
 }
 
+func (v boolean) IsInstance(b bool) bool {
+	return bool(v) == b
+}
+
 func (v boolean) ReflectTo(value reflect.Value) {
 	b := bool(v)
 	switch value.Kind() {
@@ -159,6 +149,10 @@ func (v boolean) ReflectTo(value reflect.Value) {
 	}
 }
 
+func (v boolean) ReflectType() reflect.Type {
+	return reflectBooleanType
+}
+
 func (v boolean) String() string {
 	if v {
 		return `true`
@@ -166,9 +160,9 @@ func (v boolean) String() string {
 	return `false`
 }
 
-func (v boolean) Type() dgo.Type {
+func (v boolean) TypeIdentifier() dgo.TypeIdentifier {
 	if v {
-		return booleanType(1)
+		return dgo.TiTrue
 	}
-	return booleanType(0)
+	return dgo.TiFalse
 }

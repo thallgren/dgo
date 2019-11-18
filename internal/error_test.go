@@ -13,21 +13,18 @@ import (
 func TestErrorType(t *testing.T) {
 	er := errors.New(`some error`)
 	v := vf.Value(er)
-	tp := v.Type()
-	require.Same(t, typ.Error, tp)
-	require.Instance(t, tp, v)
-	require.Instance(t, tp, er)
-	require.Assignable(t, tp, tp)
-	require.NotAssignable(t, tp, typ.String)
-	require.Equal(t, tp, tp)
-	require.Instance(t, tp.Type(), tp)
+	require.Same(t, typ.Error, v)
+	require.Assignable(t, v, er)
+	require.Assignable(t, v, v)
+	require.NotAssignable(t, v, typ.String)
+	require.Equal(t, v, v)
 
-	require.Equal(t, tp.HashCode(), tp.HashCode())
-	require.NotEqual(t, 0, tp.HashCode())
+	require.Equal(t, v.HashCode(), v.HashCode())
+	require.NotEqual(t, 0, v.HashCode())
 
-	require.Equal(t, `error`, tp.String())
+	require.Equal(t, `error`, v.String())
 
-	require.True(t, reflect.TypeOf(er).AssignableTo(tp.ReflectType()))
+	require.True(t, reflect.TypeOf(er).AssignableTo(v.ReflectType()))
 }
 
 type testUnwrapError struct {

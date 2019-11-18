@@ -4,52 +4,36 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/lyraproj/dgo/dgo"
 	require "github.com/lyraproj/dgo/dgo_test"
 	"github.com/lyraproj/dgo/typ"
 	"github.com/lyraproj/dgo/vf"
 )
 
-func TestBooleanDefault(t *testing.T) {
-	tp := typ.Boolean
-	meta := tp.Type()
-	require.Instance(t, meta, tp)
-	require.NotInstance(t, tp, tp)
-	require.NotAssignable(t, meta, tp)
-	require.Assignable(t, tp, tp)
-	require.NotAssignable(t, tp, meta)
-}
-
 func TestBooleanType(t *testing.T) {
 	v := vf.True
-	tp := v.Type().(dgo.BooleanType)
-	require.Instance(t, tp, v)
-	require.Instance(t, typ.Boolean, v)
-	require.Instance(t, typ.True, v)
-	require.Instance(t, tp, true)
-	require.Instance(t, typ.Boolean, true)
-	require.Instance(t, typ.True, true)
-	require.NotInstance(t, typ.False, v)
-	require.NotInstance(t, typ.False, true)
-	require.Assignable(t, typ.Boolean, tp)
-	require.NotAssignable(t, tp, typ.Boolean)
-	require.NotEqual(t, v, tp)
-	require.True(t, tp.IsInstance(true))
-	require.False(t, tp.IsInstance(false))
-	require.Equal(t, `true`, tp.String())
+	require.Assignable(t, v, v)
+	require.Assignable(t, typ.Boolean, v)
+	require.Assignable(t, typ.True, v)
+	require.Assignable(t, v, true)
+	require.Assignable(t, typ.Boolean, true)
+	require.Assignable(t, typ.True, true)
+	require.NotAssignable(t, typ.False, v)
+	require.NotAssignable(t, typ.False, true)
+	require.NotAssignable(t, v, typ.Boolean)
+	require.Equal(t, v, v)
+	require.True(t, v.IsInstance(true))
+	require.False(t, v.IsInstance(false))
+	require.Equal(t, `true`, v.String())
 
 	v = vf.False
-	tp = v.Type().(dgo.BooleanType)
-	require.Instance(t, tp, v)
-	require.Instance(t, typ.Boolean, v)
-	require.Instance(t, typ.False, v)
-	require.NotInstance(t, typ.True, v)
-	require.Assignable(t, typ.Boolean, tp)
-	require.NotAssignable(t, tp, typ.Boolean)
-	require.NotEqual(t, v, tp)
-	require.True(t, tp.IsInstance(false))
-	require.False(t, tp.IsInstance(true))
-	require.Equal(t, `false`, tp.String())
+	require.Assignable(t, typ.Boolean, v)
+	require.Assignable(t, typ.False, v)
+	require.NotAssignable(t, typ.True, v)
+	require.Assignable(t, typ.Boolean, v)
+	require.NotAssignable(t, v, typ.Boolean)
+	require.True(t, v.IsInstance(false))
+	require.False(t, v.IsInstance(true))
+	require.Equal(t, `false`, v.String())
 
 	require.Equal(t, typ.Boolean.HashCode(), typ.Boolean.HashCode())
 	require.NotEqual(t, 0, typ.Boolean.HashCode())

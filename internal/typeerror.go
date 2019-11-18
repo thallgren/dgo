@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 
 	"github.com/lyraproj/dgo/dgo"
@@ -14,15 +15,19 @@ type (
 	}
 
 	typeError struct {
-		expected dgo.Type
-		actual   dgo.Type
+		expected dgo.Value
+		actual   dgo.Value
 	}
 
 	sizeError struct {
-		sizedType     dgo.Type
+		sizedType     dgo.Value
 		attemptedSize int
 	}
 )
+
+func (v *mapKeyError) Assignable(other interface{}) bool {
+	return v.Equals(other) || CheckAssignableTo(nil, other, v)
+}
 
 func (v *mapKeyError) Equals(other interface{}) bool {
 	if ov, ok := other.(*mapKeyError); ok {
@@ -39,12 +44,20 @@ func (v *mapKeyError) HashCode() int {
 	return v.mapType.HashCode()*31 + v.key.HashCode()
 }
 
+func (v *mapKeyError) ReflectType() reflect.Type {
+	return reflectErrorType
+}
+
 func (v *mapKeyError) String() string {
 	return v.Error()
 }
 
-func (v *mapKeyError) Type() dgo.Type {
-	return DefaultErrorType
+func (v *mapKeyError) TypeIdentifier() dgo.TypeIdentifier {
+	return dgo.TiErrorExact
+}
+
+func (v *typeError) Assignable(other interface{}) bool {
+	return v.Equals(other) || CheckAssignableTo(nil, other, v)
 }
 
 func (v *typeError) Equals(other interface{}) bool {
@@ -57,9 +70,9 @@ func (v *typeError) Equals(other interface{}) bool {
 func (v *typeError) Error() string {
 	var what string
 	switch actual := v.actual.(type) {
-	case *exactStringType:
-		what = fmt.Sprintf(`the string %s`, strconv.Quote(actual.s))
-	case exactIntegerType, exactFloatType, booleanType, nilType:
+	case dgo.String:
+		what = fmt.Sprintf(`the string %s`, strconv.Quote(actual.GoString()))
+	case dgo.Integer, dgo.Float, dgo.Boolean, dgo.Nil:
 		what = fmt.Sprintf(`the value %s`, actual.String())
 	default:
 		what = fmt.Sprintf(`a value of type %s`, TypeString(actual))
@@ -75,8 +88,16 @@ func (v *typeError) String() string {
 	return v.Error()
 }
 
-func (v *typeError) Type() dgo.Type {
-	return DefaultErrorType
+func (v *typeError) ReflectType() reflect.Type {
+	return reflectErrorType
+}
+
+func (v *typeError) TypeIdentifier() dgo.TypeIdentifier {
+	return dgo.TiErrorExact
+}
+
+func (v *sizeError) Assignable(other interface{}) bool {
+	return v.Equals(other) || CheckAssignableTo(nil, other, v)
 }
 
 func (v *sizeError) Equals(other interface{}) bool {
@@ -94,25 +115,29 @@ func (v *sizeError) HashCode() int {
 	return v.sizedType.HashCode()*7 + v.attemptedSize
 }
 
+func (v *sizeError) ReflectType() reflect.Type {
+	return reflectErrorType
+}
+
 func (v *sizeError) String() string {
 	return v.Error()
 }
 
-func (v *sizeError) Type() dgo.Type {
-	return DefaultErrorType
+func (v *sizeError) TypeIdentifier() dgo.TypeIdentifier {
+	return dgo.TiErrorExact
 }
 
 // IllegalAssignment returns the error that represents an assignment type constraint mismatch
-func IllegalAssignment(t dgo.Type, v dgo.Value) dgo.Value {
-	return &typeError{t, v.Type()}
+func IllegalAssignment(t dgo.Value, v dgo.Value) dgo.Value {
+	return &typeError{t, v}
 }
 
 // IllegalMapKey returns the error that represents an assignment map key constraint mismatch
 func IllegalMapKey(t dgo.StructMapType, v dgo.Value) dgo.Value {
-	return &mapKeyError{t, v.Type()}
+	return &mapKeyError{t, v}
 }
 
 // IllegalSize returns the error that represents an size constraint mismatch
-func IllegalSize(t dgo.Type, sz int) dgo.Value {
+func IllegalSize(t dgo.Value, sz int) dgo.Value {
 	return &sizeError{t, sz}
 }

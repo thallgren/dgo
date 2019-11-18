@@ -22,7 +22,7 @@ func errorlog(t *testing.T, dflt string, args []interface{}) {
 }
 
 // Assignable will fail unless a is assignable from b
-func Assignable(t *testing.T, a, b dgo.Type) {
+func Assignable(t *testing.T, a dgo.Value, b interface{}) {
 	t.Helper()
 	if !a.Assignable(b) {
 		t.Errorf(`%s is not a assignable from %s`, a, b)
@@ -30,26 +30,10 @@ func Assignable(t *testing.T, a, b dgo.Type) {
 }
 
 // NotAssignable will fail if a is assignable from b
-func NotAssignable(t *testing.T, a, b dgo.Type) {
+func NotAssignable(t *testing.T, a dgo.Value, b interface{}) {
 	t.Helper()
 	if a.Assignable(b) {
 		t.Errorf(`%s is assignable from %s`, a, b)
-	}
-}
-
-// Instance will fail unless val is an instance of typ
-func Instance(t *testing.T, typ dgo.Type, val interface{}) {
-	t.Helper()
-	if !typ.Instance(val) {
-		t.Errorf(`%v is not an instance of %s`, internal.Value(val), typ)
-	}
-}
-
-// NotInstance will fail if val is an instance of typ
-func NotInstance(t *testing.T, typ dgo.Type, val interface{}) {
-	t.Helper()
-	if typ.Instance(val) {
-		t.Errorf(`%v is an instance of %s`, internal.Value(val), typ)
 	}
 }
 

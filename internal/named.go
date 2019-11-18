@@ -26,13 +26,13 @@ type (
 
 	exactNamed struct {
 		dgo.NamedType
-		value dgo.Value
+		value structVal
 	}
 )
 
 var namedTypes = sync.Map{}
 
-func defaultAsgChecker(t dgo.NamedType, other dgo.Type) bool {
+func defaultAsgChecker(t dgo.NamedType, other dgo.Value) bool {
 	if ot, ok := other.(dgo.NamedType); ok {
 		return ot.ReflectType().AssignableTo(t.AssignableType())
 	}
@@ -68,8 +68,8 @@ func NewNamedType(name string, ctor dgo.Constructor, extractor dgo.InitArgExtrac
 }
 
 // ExactNamedType returns the exact NamedType that represents the given value.
-func ExactNamedType(namedType dgo.NamedType, value dgo.Value) dgo.NamedType {
-	return &exactNamed{NamedType: namedType, value: value}
+func ExactNamedType(namedType dgo.NamedType, value interface{}) dgo.NamedType {
+	return &exactNamed{NamedType: namedType, value: structVal{rs: reflect.ValueOf(value)}}
 }
 
 // NamedType returns the type with the given name from the global type registry. The function returns
@@ -108,12 +108,13 @@ func (t *named) AssignableType() reflect.Type {
 	return t.implType
 }
 
-func (t *named) Assignable(other dgo.Type) bool {
+func (t *named) Assignable(other interface{}) bool {
 	f := t.asgChecker
 	if f == nil {
 		f = defaultAsgChecker
 	}
-	return f(t, other) || CheckAssignableTo(nil, other, t)
+	ov := Value(other)
+	return f(t, ov) || CheckAssignableTo(nil, ov, t)
 }
 
 func (t *named) New(arg dgo.Value) dgo.Value {
@@ -121,7 +122,7 @@ func (t *named) New(arg dgo.Value) dgo.Value {
 		panic(fmt.Errorf(`creating new instances of %s is not possible`, t.name))
 	}
 	v := t.ctor(arg)
-	if t.asgChecker == nil || t.asgChecker(t, v.Type()) {
+	if t.asgChecker == nil || t.asgChecker(t, v) {
 		return v
 	}
 	panic(IllegalAssignment(t, v))
@@ -149,7 +150,7 @@ func (t *named) Instance(value interface{}) bool {
 	if t.asgChecker == nil {
 		return reflect.TypeOf(value).AssignableTo(t.AssignableType())
 	}
-	return t.Assignable(Value(value).Type())
+	return t.Assignable(Value(value))
 }
 
 func (t *named) Name() string {
@@ -166,10 +167,6 @@ func (t *named) ReflectType() reflect.Type {
 
 func (t *named) String() string {
 	return TypeString(t)
-}
-
-func (t *named) Type() dgo.Type {
-	return &metaType{t}
 }
 
 func (t *named) TypeIdentifier() dgo.TypeIdentifier {
@@ -190,12 +187,13 @@ func (t *named) ValueString(v dgo.Value) string {
 	return b.String()
 }
 
-func (t *parameterized) Assignable(other dgo.Type) bool {
+func (t *parameterized) Assignable(other interface{}) bool {
 	f := t.NamedType.(*named).asgChecker
 	if f == nil {
 		f = defaultAsgChecker
 	}
-	return f(t, other) || CheckAssignableTo(nil, other, t)
+	ov := Value(other)
+	return f(t, ov) || CheckAssignableTo(nil, ov, t)
 }
 
 func (t *parameterized) Equals(other interface{}) bool {
@@ -210,7 +208,7 @@ func (t *parameterized) HashCode() int {
 }
 
 func (t *parameterized) Instance(value interface{}) bool {
-	return t.Assignable(Value(value).Type())
+	return t.Assignable(Value(value))
 }
 
 func (t *parameterized) Parameters() dgo.Array {
@@ -221,48 +219,31 @@ func (t *parameterized) String() string {
 	return TypeString(t)
 }
 
-func (t *parameterized) Type() dgo.Type {
-	return &metaType{t}
-}
-
-func (t *exactNamed) Assignable(other dgo.Type) bool {
-	if ot, ok := other.(*exactNamed); ok {
-		return t.value.Equals(ot.value)
-	}
-	return CheckAssignableTo(nil, other, t)
+func (t *exactNamed) Assignable(other interface{}) bool {
+	return t.Equals(other) || CheckAssignableTo(nil, other, t)
 }
 
 func (t *exactNamed) Equals(other interface{}) bool {
-	if ot, ok := other.(*exactNamed); ok {
-		return t.value.Equals(ot.value)
+	if _, ok := other.(dgo.Value); ok {
+		var ot *exactNamed
+		ot, ok = other.(*exactNamed)
+		return ok && t.value.Equals(ot.value)
 	}
-	return false
+	return t.value.Equals(other)
 }
 
 func (t *exactNamed) HashCode() int {
 	return t.value.HashCode()*7 + int(dgo.TiNamedExact)
 }
 
-func (t *exactNamed) Generic() dgo.Type {
+func (t *exactNamed) Generic() dgo.Value {
 	return t.NamedType
-}
-
-func (t *exactNamed) Instance(other interface{}) bool {
-	return t.value.Equals(other)
 }
 
 func (t *exactNamed) String() string {
 	return TypeString(t)
 }
 
-func (t *exactNamed) Type() dgo.Type {
-	return &metaType{t}
-}
-
 func (t *exactNamed) TypeIdentifier() dgo.TypeIdentifier {
 	return dgo.TiNamedExact
-}
-
-func (t *exactNamed) Value() dgo.Value {
-	return t.value
 }

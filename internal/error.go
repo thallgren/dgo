@@ -20,8 +20,9 @@ const DefaultErrorType = errType(0)
 
 var reflectErrorType = reflect.TypeOf((*error)(nil)).Elem()
 
-func (t errType) Type() dgo.Type {
-	return &metaType{t}
+func (t errType) Assignable(other interface{}) bool {
+	_, ok := other.(error)
+	return ok || t == other || CheckAssignableTo(nil, other, t)
 }
 
 func (t errType) Equals(other interface{}) bool {
@@ -30,18 +31,6 @@ func (t errType) Equals(other interface{}) bool {
 
 func (t errType) HashCode() int {
 	return int(t.TypeIdentifier())
-}
-
-func (t errType) Assignable(other dgo.Type) bool {
-	if DefaultErrorType == other {
-		return true
-	}
-	return CheckAssignableTo(nil, other, t)
-}
-
-func (t errType) Instance(value interface{}) bool {
-	_, ok := value.(error)
-	return ok
 }
 
 func (t errType) ReflectType() reflect.Type {
@@ -54,6 +43,10 @@ func (t errType) String() string {
 
 func (t errType) TypeIdentifier() dgo.TypeIdentifier {
 	return dgo.TiError
+}
+
+func (e *errw) Assignable(other interface{}) bool {
+	return e.Equals(other) || CheckAssignableTo(nil, other, e)
 }
 
 func (e *errw) Equals(other interface{}) bool {
@@ -82,6 +75,10 @@ func (e *errw) ReflectTo(value reflect.Value) {
 	}
 }
 
+func (e *errw) ReflectType() reflect.Type {
+	return reflectErrorType
+}
+
 func (e *errw) String() string {
 	return e.error.Error()
 }
@@ -95,6 +92,6 @@ func (e *errw) Unwrap() error {
 	return nil
 }
 
-func (e *errw) Type() dgo.Type {
-	return DefaultErrorType
+func (e *errw) TypeIdentifier() dgo.TypeIdentifier {
+	return dgo.TiErrorExact
 }

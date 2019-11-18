@@ -1,37 +1,14 @@
 package dgo
 
-import "reflect"
+import (
+	"reflect"
+	"regexp"
+)
 
 type (
-	// A Type describes an immutable Value. The Type is in itself also a Value
-	Type interface {
-		Value
-
-		// Assignable returns true if a variable or parameter of this type can be hold a value of the other type
-		Assignable(other Type) bool
-
-		// Instance returns true if the value is an instance of this type
-		Instance(value interface{}) bool
-
-		// TypeIdentifier returns a unique identifier for this type. The TypeIdentifier is intended to be used by
-		// decorators providing string representation of the type
-		TypeIdentifier() TypeIdentifier
-
-		// ReflectType returns the reflect.Type that corresponds to the receiver
-		ReflectType() reflect.Type
-	}
-
-	// Meta is the description of a Type.
-	Meta interface {
-		Type
-
-		// Describes returns the type that the meta type describes.
-		Describes() Type
-	}
-
 	// IntegerType describes integers that are within an inclusive or exclusive range
 	IntegerType interface {
-		Type
+		Value
 
 		// Inclusive returns true if this range has an inclusive end
 		Inclusive() bool
@@ -48,7 +25,7 @@ type (
 
 	// FloatRangeType describes floating point numbers that are within an inclusive or exclusive range
 	FloatRangeType interface {
-		Type
+		Value
 
 		// Inclusive returns true if this range has an inclusive end
 		Inclusive() bool
@@ -65,7 +42,7 @@ type (
 
 	// BooleanType matches the true and false literals
 	BooleanType interface {
-		Type
+		Value
 
 		// IsInstance returns true if the Go native value is represented by this type
 		IsInstance(value bool) bool
@@ -74,8 +51,6 @@ type (
 	// SizedType is implemented by types that may have a size constraint
 	// such as String, Array, or Map
 	SizedType interface {
-		Type
-
 		// Max returns the maximum size for instances of this type
 		Max() int
 
@@ -88,12 +63,22 @@ type (
 
 	// StringType is a SizedType.
 	StringType interface {
+		Value
 		SizedType
+
+		// IsInstance returns true if the given string is an instance of this type
+		IsInstance(s string) bool
+	}
+
+	PatternType interface {
+		StringType
+
+		GoRegexp() *regexp.Regexp
 	}
 
 	// NativeType is the type for all Native values
 	NativeType interface {
-		Type
+		Value
 
 		// GoType returns the reflect.Type
 		GoType() reflect.Type
@@ -116,13 +101,13 @@ type (
 	// An AliasMap maps names to types and vice versa.
 	AliasMap interface {
 		// GetName returns the name for the given type or nil if the type isn't found
-		GetName(t Type) String
+		GetName(t Value) String
 
 		// GetType returns the type with the given name or nil if the type isn't found
-		GetType(n String) Type
+		GetType(n String) Value
 
 		// Add adds the type t with the given name to this map
-		Add(t Type, name String)
+		Add(t Value, name String)
 	}
 
 	// GenericType is implemented by types that represent themselves stripped from
@@ -130,14 +115,7 @@ type (
 	GenericType interface {
 		// Generic returns the generic type that this type represents stripped
 		// from range and size constraints
-		Generic() Type
-	}
-
-	// ExactType is implemented by types that match exactly one value
-	ExactType interface {
-		Type
-
-		Value() Value
+		Generic() Value
 	}
 
 	// Factory provides the New method that types use to create new instances
@@ -153,12 +131,7 @@ type (
 
 	// DeepAssignable is implemented by values that need deep Assignable comparisons.
 	DeepAssignable interface {
-		DeepAssignable(guard RecursionGuard, other Type) bool
-	}
-
-	// DeepInstance is implemented by values that need deep Intance comparisons.
-	DeepInstance interface {
-		DeepInstance(guard RecursionGuard, value interface{}) bool
+		DeepAssignable(guard RecursionGuard, other interface{}) bool
 	}
 
 	// ReverseAssignable indicates that the check for assignable must continue by delegating to the
@@ -175,6 +148,6 @@ type (
 		//
 		// The guard is part of the internal endless recursion mechanism and should be passed as nil unless provided
 		// by a DeepAssignable caller.
-		AssignableTo(guard RecursionGuard, other Type) bool
+		AssignableTo(guard RecursionGuard, other Value) bool
 	}
 )

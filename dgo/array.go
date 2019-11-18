@@ -202,7 +202,7 @@ type (
 
 		// Arg is like Get, but it will an illegal argument error unless the value at the given position is not
 		// of the correct type or if the given position is beyond the size of the array
-		Arg(funcName string, n int, typ Type) Value
+		Arg(funcName string, n int, typ Value) Value
 
 		// AssertSize will panic with an illegal argument error unless the size of the receiver is within
 		// the given min and max inclusive range.
@@ -211,10 +211,11 @@ type (
 
 	// ArrayType is implemented by types representing implementations of the Array value
 	ArrayType interface {
+		Value
 		SizedType
 
 		// ElementType returns the type of the elements for instances of this type
-		ElementType() Type
+		ElementType() Value
 	}
 
 	// TupleType describes an array with a fixed set of elements where each element must conform to a specific type.
@@ -225,7 +226,7 @@ type (
 		Len() int
 
 		// Element returns the Type of the nth element of the Tuple where n must be in the range 0 to Len() - 1.
-		Element(int) Type
+		Element(int) Value
 
 		// ElementTypes returns the types of the elements for instances of this type.
 		ElementTypes() Array

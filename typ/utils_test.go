@@ -7,7 +7,7 @@ import (
 )
 
 func ExampleGeneric() {
-	vt := vf.Strings(`hello`, `world`).Type()
+	vt := vf.Strings(`hello`, `world`)
 	fmt.Println(vt)
 	fmt.Println(Generic(vt))
 

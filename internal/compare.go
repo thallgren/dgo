@@ -49,7 +49,7 @@ type deepCompare interface {
 }
 
 // Assignable checks if b is assignable to a while guarding for endless recursion
-func Assignable(guard dgo.RecursionGuard, a dgo.Type, b dgo.Type) bool {
+func Assignable(guard dgo.RecursionGuard, a dgo.Value, b interface{}) bool {
 	if a == b {
 		return true
 	}
@@ -61,27 +61,6 @@ func Assignable(guard dgo.RecursionGuard, a dgo.Type, b dgo.Type) bool {
 
 	_, ok = b.(dgo.DeepAssignable)
 	if ok {
-		if guard == nil {
-			guard = &doubleSeen{aSeen: []dgo.Value{a}, bSeen: []dgo.Value{b}}
-		} else {
-			guard = guard.Append(a, b)
-			if guard.Hit() {
-				return true
-			}
-		}
-	}
-	return da.DeepAssignable(guard, b)
-}
-
-// Instance checks if b is an instance of a to a while guarding for endless recursion
-func Instance(guard dgo.RecursionGuard, a dgo.Type, b interface{}) bool {
-	da, ok := a.(dgo.DeepInstance)
-	if !ok {
-		return a.Instance(b)
-	}
-
-	_, ok = b.(deepEqual) // only deepEqual implementations may be recursive
-	if ok {
 		bv := b.(dgo.Value)
 		if guard == nil {
 			guard = &doubleSeen{aSeen: []dgo.Value{a}, bSeen: []dgo.Value{bv}}
@@ -92,7 +71,7 @@ func Instance(guard dgo.RecursionGuard, a dgo.Type, b interface{}) bool {
 			}
 		}
 	}
-	return da.DeepInstance(guard, b)
+	return da.DeepAssignable(guard, b)
 }
 
 func deepHashCode(seen []dgo.Value, e dgo.Value) int {

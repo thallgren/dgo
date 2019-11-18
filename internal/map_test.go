@@ -34,7 +34,7 @@ func TestMapType_New(t *testing.T) {
 	m := vf.Map(`first`, 1, `second`, 2)
 	require.Same(t, m, vf.New(typ.Map, m))
 	require.Same(t, m, vf.New(mt, m))
-	require.Same(t, m, vf.New(m.Type(), m))
+	require.Same(t, m, vf.New(m, m))
 	require.Same(t, m, vf.New(tf.StructMapFromMap(false, vf.Map(`first`, typ.Integer, `second`, typ.Integer)), m))
 	require.Same(t, m, vf.New(mt, vf.Arguments(m)))
 	require.Equal(t, m, vf.New(mt, vf.Values(`first`, 1, `second`, 2)))
@@ -45,34 +45,34 @@ func TestMapType_New(t *testing.T) {
 func TestMap_ValueType(t *testing.T) {
 	m1 := vf.Map(
 		`first`, 1,
-		`second`, 2).Type().(dgo.MapType).ValueType()
+		`second`, 2).(dgo.MapType).ValueType()
 	m2 := vf.Map(
 		`one`, 1,
-		`two`, 2).Type().(dgo.MapType).ValueType()
+		`two`, 2).(dgo.MapType).ValueType()
 	m3 := vf.Map(
 		`one`, 1,
-		`two`, 3).Type().(dgo.MapType).ValueType()
+		`two`, 3).(dgo.MapType).ValueType()
 	m4 := vf.Map(
 		`two`, 3,
 		`three`, 3,
-		`four`, 3).Type().(dgo.MapType).ValueType()
+		`four`, 3).(dgo.MapType).ValueType()
 	require.Assignable(t, m1, m2)
 	require.NotAssignable(t, m1, m3)
 	require.Assignable(t, tf.IntegerRange(1, 2, true), m1)
 	require.NotAssignable(t, tf.IntegerRange(2, 3, true), m1)
 
-	require.NotAssignable(t, m2, vf.Integer(2).Type())
-	require.Assignable(t, m4, vf.Integer(3).Type())
+	require.NotAssignable(t, m2, vf.Integer(2))
+	require.Assignable(t, m4, vf.Integer(3))
 
 	require.Equal(t, m1, m2)
 	require.NotEqual(t, m1, m3)
-	require.NotEqual(t, m4, vf.Integer(3).Type())
+	require.NotEqual(t, m4, vf.Integer(3))
 	require.NotEqual(t, m1, m4)
 
 	require.True(t, m1.HashCode() > 0)
 	require.Equal(t, m1.HashCode(), m1.HashCode())
-	vm := m1.Type()
-	require.Instance(t, vm, m1)
+	vm := m1
+	require.Assignable(t, vm, m1)
 
 	require.True(t, `1&2` == m1.String())
 }
@@ -93,8 +93,8 @@ func TestNewMapType_DefaultType(t *testing.T) {
 	)
 	require.Assignable(t, mt, mt)
 	require.NotAssignable(t, mt, typ.String)
-	require.Instance(t, mt, m1)
-	require.NotInstance(t, mt, `a`)
+	require.Assignable(t, mt, m1)
+	require.NotAssignable(t, mt, `a`)
 
 	require.Equal(t, mt, mt)
 	require.NotEqual(t, mt, typ.String)
@@ -109,30 +109,23 @@ func TestNewMapType_DefaultType(t *testing.T) {
 	require.True(t, mt.HashCode() > 0)
 	require.Equal(t, mt.HashCode(), mt.HashCode())
 
-	vm := mt.Type()
-	require.Instance(t, vm, mt)
-
 	require.Equal(t, `map[any]any`, mt.String())
 }
 
 func TestMap_ExactType(t *testing.T) {
-	m1 := vf.Map(
+	t1 := vf.Map(
 		`a`, 3,
-		`b`, 4)
-	t1 := m1.Type().(dgo.MapType)
-	m2 := vf.Map(
+		`b`, 4).(dgo.MapType)
+	t2 := vf.Map(
 		`a`, 1,
-		`b`, 2)
-	t2 := m2.Type().(dgo.MapType)
-	t3 := vf.Map(`b`, 2).Type().(dgo.MapType)
+		`b`, 2).(dgo.MapType)
+	t3 := vf.Map(`b`, 2).(dgo.MapType)
 	require.Equal(t, 2, t1.Min())
 	require.Equal(t, 2, t1.Max())
 	require.False(t, t1.Unbounded())
 	require.Assignable(t, t1, t1)
 	require.NotAssignable(t, t1, t2)
-	require.Instance(t, t1, m1)
-	require.NotInstance(t, t1, m2)
-	require.NotInstance(t, t1, `a`)
+	require.NotAssignable(t, t1, `a`)
 	require.Assignable(t, typ.Map, t1)
 	require.NotAssignable(t, t1, typ.Map)
 	require.NotAssignable(t, t1, t3)
@@ -151,8 +144,6 @@ func TestMap_ExactType(t *testing.T) {
 
 	require.True(t, t1.HashCode() > 0)
 	require.Equal(t, t1.HashCode(), t1.HashCode())
-	vm := t1.Type()
-	require.Instance(t, vm, t1)
 
 	require.Equal(t, `{"a":3,"b":4}`, t1.String())
 }
@@ -177,13 +168,12 @@ func TestMap_SizedType(t *testing.T) {
 		`c`, 3)
 	require.Assignable(t, mt, mt)
 	require.NotAssignable(t, mt, typ.Any)
-	require.Instance(t, mt, m1)
-	require.NotInstance(t, mt, m2)
-	require.NotInstance(t, mt, `a`)
+	require.NotAssignable(t, mt, m2)
+	require.NotAssignable(t, mt, `a`)
 
 	mtz := tf.Map(typ.String, typ.Integer, 3, 3)
-	require.Instance(t, mtz, m3)
-	require.NotInstance(t, mtz, m1)
+	require.Assignable(t, mtz, m3)
+	require.NotAssignable(t, mtz, m1)
 
 	require.Assignable(t, mt, mtz)
 	require.NotAssignable(t, mtz, mt)
@@ -191,24 +181,24 @@ func TestMap_SizedType(t *testing.T) {
 	require.NotEqual(t, mt, typ.Any)
 
 	mta := tf.Map(typ.Any, typ.Any, 3, 3)
-	require.NotInstance(t, mta, m1)
-	require.Instance(t, mta, m3)
+	require.NotAssignable(t, mta, m1)
+	require.Assignable(t, mta, m3)
 
 	mtva := tf.Map(typ.String, typ.Any)
-	require.Instance(t, mtva, m1)
-	require.Instance(t, mtva, m2)
-	require.Instance(t, mtva, m3)
+	require.Assignable(t, mtva, m1)
+	require.Assignable(t, mtva, m2)
+	require.Assignable(t, mtva, m3)
 
 	mtka := tf.Map(typ.Any, typ.Integer)
-	require.Instance(t, mtka, m1)
-	require.NotInstance(t, mtka, m2)
-	require.Instance(t, mtka, m3)
+	require.Assignable(t, mtka, m1)
+	require.NotAssignable(t, mtka, m2)
+	require.Assignable(t, mtka, m3)
 
 	require.True(t, mt.HashCode() > 0)
 	require.Equal(t, mt.HashCode(), mt.HashCode())
 	require.NotEqual(t, mt.HashCode(), mtz.HashCode())
-	vm := mt.Type()
-	require.Instance(t, vm, mt)
+	vm := mt
+	require.Assignable(t, vm, mt)
 
 	require.Equal(t, `map[string]int`, mt.String())
 	require.Equal(t, `map[string,3,3]int`, mtz.String())
@@ -217,25 +207,23 @@ func TestMap_SizedType(t *testing.T) {
 }
 
 func TestMap_KeyType(t *testing.T) {
-	m1 := vf.Map(`a`, 3, `b`, 4).Type().(dgo.MapType).KeyType()
-	m2 := vf.Map(`a`, 1, `b`, 2).Type().(dgo.MapType).KeyType()
-	m3 := vf.Map(`b`, 2).Type().(dgo.MapType).KeyType()
+	m1 := vf.Map(`a`, 3, `b`, 4).(dgo.MapType).KeyType()
+	m2 := vf.Map(`a`, 1, `b`, 2).(dgo.MapType).KeyType()
+	m3 := vf.Map(`b`, 2).(dgo.MapType).KeyType()
 	require.Assignable(t, m1, m2)
 	require.NotAssignable(t, m1, m3)
 	require.Assignable(t, tf.Enum(`a`, `b`), m1)
 	require.NotAssignable(t, tf.Enum(`b`, `c`), m1)
 
-	require.NotAssignable(t, m2, vf.String(`b`).Type())
-	require.Assignable(t, m3, vf.String(`b`).Type())
+	require.NotAssignable(t, m2, vf.String(`b`))
+	require.Assignable(t, m3, vf.String(`b`))
 
 	require.Equal(t, m1, m2)
 	require.NotEqual(t, m1, m3)
-	require.NotEqual(t, m3, vf.String(`b`).Type())
+	require.NotEqual(t, m3, vf.String(`b`))
 
 	require.True(t, m1.HashCode() > 0)
 	require.Equal(t, m1.HashCode(), m1.HashCode())
-	vm := m1.Type()
-	require.Instance(t, vm, m1)
 
 	require.Equal(t, `"a"&"b"`, m1.String())
 }
@@ -248,19 +236,19 @@ func TestMap_EntryType(t *testing.T) {
 		require.True(t, v.HashCode() > 0)
 		require.Equal(t, v.HashCode(), v.HashCode())
 
-		vt := v.Type()
+		vt := v
 		require.Assignable(t, vt, vt)
 		require.NotAssignable(t, vt, typ.String)
-		require.Instance(t, vt, v)
-		require.NotInstance(t, vt, vt)
+		require.Assignable(t, vt, v)
+		require.NotAssignable(t, vt, vt)
 		require.Equal(t, vt, vt)
 		require.NotEqual(t, vt, `a`)
 		require.True(t, vt.HashCode() > 0)
 		require.Equal(t, vt.HashCode(), vt.HashCode())
 		require.Equal(t, `"a":3`, vt.String())
 
-		vm := vt.Type()
-		require.Instance(t, vm, vt)
+		vm := vt
+		require.Assignable(t, vm, vt)
 
 		require.Same(t, typ.Any, typ.Generic(vt))
 
@@ -273,7 +261,7 @@ func TestMap_EntryType(t *testing.T) {
 		require.False(t, v.Frozen())
 		require.NotSame(t, v, v.FrozenCopy())
 
-		vt := v.Type()
+		vt := v
 		require.Equal(t, `"a":{1,2}`, vt.String())
 	})
 }
@@ -397,23 +385,23 @@ func TestMap_immutable(t *testing.T) {
 func TestMutableMap(t *testing.T) {
 	m := vf.MutableMap()
 	m.SetType(map[string]string{})
-	mt := m.Type()
+	mt := m
 	require.Equal(t, 0, m.Len())
 	require.Equal(t, tf.Map(typ.String, typ.String), mt)
 
 	m = vf.MutableMap()
 	m.SetType(mt)
 	require.Equal(t, 0, m.Len())
-	require.Equal(t, tf.Map(typ.String, typ.String), m.Type())
+	require.Equal(t, tf.Map(typ.String, typ.String), m)
 
 	m = vf.MutableMap()
 	m.SetType(`map[string]int`)
 	require.Equal(t, 0, m.Len())
-	require.Equal(t, tf.Map(typ.String, typ.Integer), m.Type())
+	require.Equal(t, tf.Map(typ.String, typ.Integer), m)
 
 	m = vf.MapWithCapacity(7, vf.String(`map[string]int`))
 	require.Equal(t, 0, m.Len())
-	require.Equal(t, tf.Map(typ.String, typ.Integer), m.Type())
+	require.Equal(t, tf.Map(typ.String, typ.Integer), m)
 
 	require.Panic(t, func() { vf.MutableMap().SetType(`[]int`) }, `does not evaluate to a map type`)
 }
@@ -421,35 +409,33 @@ func TestMutableMap(t *testing.T) {
 func TestMapFromReflected(t *testing.T) {
 	m := vf.FromReflectedMap(reflect.ValueOf(map[string]string{}), false)
 	require.Equal(t, 0, m.Len())
-	require.Equal(t, tf.Map(typ.String, typ.String), m.Type())
+	require.Equal(t, tf.Map(typ.String, typ.String), m)
 	m.Put(`hi`, `there`)
 	require.Equal(t, 1, m.Len())
 }
 
 func TestMapType_KeyType(t *testing.T) {
-	m := vf.Map(`hello`, `world`)
-	mt := m.Type().(dgo.MapType)
-	require.Instance(t, mt.KeyType(), `hello`)
-	require.NotInstance(t, mt.KeyType(), `hi`)
+	mt := vf.Map(`hello`, `world`).(dgo.MapType)
+	require.Assignable(t, mt.KeyType(), `hello`)
+	require.NotAssignable(t, mt.KeyType(), `hi`)
 
-	m = vf.Map(`hello`, `world`, 2, 2.0)
-	mt = m.Type().(dgo.MapType)
+	m := vf.Map(`hello`, `world`, 2, 2.0)
+	mt = m.(dgo.MapType)
 	require.Assignable(t, tf.AnyOf(typ.String, typ.Integer), mt.KeyType())
-	require.Instance(t, tf.Array(tf.AnyOf(typ.String, typ.Integer)), m.Keys())
+	require.Assignable(t, tf.Array(tf.AnyOf(typ.String, typ.Integer)), m.Keys())
 	require.Assignable(t, tf.AnyOf(typ.String, typ.Float), mt.ValueType())
-	require.Instance(t, tf.Array(tf.AnyOf(typ.String, typ.Float)), m.Values())
+	require.Assignable(t, tf.Array(tf.AnyOf(typ.String, typ.Float)), m.Values())
 }
 
 func TestMapType_ValueType(t *testing.T) {
-	m := vf.Map(`hello`, `world`)
-	mt := m.Type().(dgo.MapType)
-	require.Instance(t, mt.ValueType(), `world`)
-	require.NotInstance(t, mt.ValueType(), `earth`)
+	mt := vf.Map(`hello`, `world`).(dgo.MapType)
+	require.Assignable(t, mt.ValueType(), `world`)
+	require.NotAssignable(t, mt.ValueType(), `earth`)
 }
 
 func TestMapNilKey(t *testing.T) {
 	m := vf.Map(nil, 5)
-	require.Instance(t, typ.Map, m)
+	require.Assignable(t, typ.Map, m)
 
 	require.Nil(t, m.Get(0))
 	require.Equal(t, 5, m.Get(nil))
@@ -632,7 +618,7 @@ func TestMap_Copy_freeze_recursive(t *testing.T) {
 
 	m.EachEntry(func(e dgo.MapEntry) {
 		if e.Frozen() {
-			require.True(t, typ.Integer.Instance(e.Key()))
+			require.True(t, typ.Integer.Assignable(e.Key()))
 		}
 	})
 
@@ -660,7 +646,7 @@ func TestMap_selfReference(t *testing.T) {
 	d := vf.MutableMap()
 	d.Put(`hello`, `world`)
 	d.Put(`deep`, d)
-	require.Instance(t, tp, d)
+	require.Assignable(t, tp, d)
 	require.Equal(t, `{"hello":"world","deep":<recursive self reference to map>}`, d.String())
 
 	t2 := tf.ParseType(`x=map[string](string|map[string](string|x))`)
@@ -783,7 +769,7 @@ func TestMap_SetType(t *testing.T) {
 
 	mt := tf.Map(typ.String, tf.AnyOf(typ.Integer, typ.Float, typ.String))
 	m.SetType(mt)
-	require.Same(t, mt, m.Type())
+	require.Same(t, mt, m)
 
 	require.Panic(t, func() { m.SetType(`map[string](float|string)`) },
 		`cannot be assigned`)
@@ -795,7 +781,7 @@ func TestMap_SetType(t *testing.T) {
 		`Map.SetType: argument does not evaluate to a map type`)
 
 	m.SetType(nil)
-	require.Assignable(t, tf.ParseType(`{"first":1,"second":2.0,"third":"three"}`), m.Type())
+	require.Assignable(t, tf.ParseType(`{"first":1,"second":2.0,"third":"three"}`), m)
 
 	m.Freeze()
 	require.Panic(t, func() { m.SetType(mt) }, `frozen`)
@@ -998,9 +984,9 @@ func TestMapEntry_String(t *testing.T) {
 
 func TestMapEntry_Type(t *testing.T) {
 	vf.Map(`a`, 1).EachEntry(func(e dgo.MapEntry) {
-		require.Equal(t, e.Type(), internal.NewMapEntry(`a`, 1).Type())
-		require.Assignable(t, e.Type(), internal.NewMapEntry(`a`, 1).Type())
-		require.Instance(t, e.Type(), internal.NewMapEntry(`a`, 1))
-		require.NotInstance(t, e.Type(), internal.NewMapEntry(`a`, 2))
+		require.Equal(t, e, internal.NewMapEntry(`a`, 1))
+		require.Assignable(t, e, internal.NewMapEntry(`a`, 1))
+		require.Assignable(t, e, internal.NewMapEntry(`a`, 1))
+		require.NotAssignable(t, e, internal.NewMapEntry(`a`, 2))
 	})
 }

@@ -60,14 +60,13 @@ func TestArray_badArgCount(t *testing.T) {
 func TestArrayType(t *testing.T) {
 	tp := tf.Array()
 	v := vf.Strings(`a`, `b`)
-	require.Instance(t, tp, v)
+	require.Assignable(t, tp, v)
 	require.Assignable(t, tp, tf.AnyOf(tf.Array(tf.String(5, 5)), tf.Array(tf.String(8, 8))))
 	require.Equal(t, typ.Any, tp.ElementType())
 	require.Equal(t, 0, tp.Min())
 	require.Equal(t, math.MaxInt64, tp.Max())
 	require.True(t, tp.Unbounded())
 
-	require.Instance(t, tp.Type(), tp)
 	require.Equal(t, `[]any`, tp.String())
 
 	require.NotEqual(t, 0, tp.HashCode())
@@ -79,7 +78,6 @@ func TestArrayType_New(t *testing.T) {
 	a := vf.Values(1, 2)
 	require.Same(t, a, vf.New(typ.Array, a))
 	require.Same(t, a, vf.New(at, a))
-	require.Same(t, a, vf.New(a.Type(), a))
 	require.Same(t, a, vf.New(tf.Tuple(typ.Integer, typ.Integer), a))
 	require.Same(t, a, vf.New(at, vf.Arguments(a)))
 	require.Equal(t, a, vf.New(at, vf.Values(1, 2)))
@@ -90,49 +88,44 @@ func TestArrayType_New(t *testing.T) {
 func TestSizedArrayType(t *testing.T) {
 	tp := tf.Array(typ.String)
 	v := vf.Strings(`a`, `b`)
-	require.Instance(t, tp, v)
-	require.NotInstance(t, tp, `a`)
+	require.Assignable(t, tp, v)
+	require.NotAssignable(t, tp, `a`)
 	require.NotAssignable(t, tp, typ.Array)
 	require.Assignable(t, tp, tf.AnyOf(tf.Array(tf.String(5, 5)), tf.Array(tf.String(8, 8))))
 	require.Equal(t, tp, tp)
 	require.NotEqual(t, tp, typ.Array)
 	require.NotEqual(t, tp, tf.Map(typ.String, typ.String))
 
-	require.Instance(t, tp.Type(), tp)
 	require.Equal(t, `[]string`, tp.String())
 
 	tp = tf.Array(typ.Integer)
 	v = vf.Strings(`a`, `b`)
-	require.NotInstance(t, tp, v)
-	require.NotAssignable(t, tp, v.Type())
+	require.NotAssignable(t, tp, v)
 
 	tp = tf.Array(tf.AnyOf(typ.String, typ.Integer))
 	v = vf.Values(`a`, 3)
-	require.Instance(t, tp, v)
-	require.Assignable(t, tp, v.Type())
-	require.Instance(t, v.Type(), v)
+	require.Assignable(t, tp, v)
 	v = v.With(vf.True)
-	require.NotInstance(t, tp, v)
-	require.NotAssignable(t, tp, v.Type())
+	require.NotAssignable(t, tp, v)
 
 	tp = tf.Array(0, 2)
 	v = vf.Strings(`a`, `b`)
-	require.Instance(t, tp, v)
+	require.Assignable(t, tp, v)
 
 	tp = tf.Array(0, 1)
-	require.NotInstance(t, tp, v)
+	require.NotAssignable(t, tp, v)
 
 	tp = tf.Array(2, 3)
-	require.Instance(t, tp, v)
+	require.Assignable(t, tp, v)
 
 	tp = tf.Array(3, 3)
-	require.NotInstance(t, tp, v)
+	require.NotAssignable(t, tp, v)
 
 	tp = tf.Array(typ.String, 2, 3)
-	require.Instance(t, tp, v)
+	require.Assignable(t, tp, v)
 
 	tp = tf.Array(typ.Integer, 2, 3)
-	require.NotInstance(t, tp, v)
+	require.NotAssignable(t, tp, v)
 
 	require.NotEqual(t, 0, tp.HashCode())
 	require.NotEqual(t, tp.HashCode(), tf.Array(typ.Integer).HashCode())
@@ -149,28 +142,28 @@ func TestSizedArrayType(t *testing.T) {
 
 func TestExactArrayType(t *testing.T) {
 	v := vf.Strings()
-	tp := v.Type().(dgo.TupleType)
+	tp := v.(dgo.TupleType)
 	require.Equal(t, typ.Any, tp.ElementType())
 
 	v = vf.Strings(`a`)
-	tp = v.Type().(dgo.TupleType)
-	et := vf.String(`a`).Type()
+	tp = v.(dgo.TupleType)
+	et := vf.String(`a`)
 	require.Equal(t, et, tp.ElementType())
 	require.Assignable(t, tp, tf.Array(et, 1, 1))
 	require.NotAssignable(t, tp, tf.Array(typ.String, 1, 1))
 
 	v = vf.Strings(`a`, `b`)
-	tp = v.Type().(dgo.TupleType)
-	require.Instance(t, tp, v)
-	require.Equal(t, tp, vf.Strings(`a`, `b`).Type())
-	require.NotInstance(t, tp, `a`)
+	tp = v.(dgo.TupleType)
+	require.Assignable(t, tp, v)
+	require.Equal(t, tp, vf.Strings(`a`, `b`))
+	require.NotAssignable(t, tp, `a`)
 	require.Assignable(t, tp, tp)
 	require.NotAssignable(t, tp, typ.Array)
 	require.NotAssignable(t, tp, tf.Array(et, 1, 1))
 
-	require.Assignable(t, tp, tf.Tuple(vf.String(`a`).Type(), vf.String(`b`).Type()))
-	require.NotAssignable(t, tp, tf.Tuple(vf.String(`a`).Type(), vf.String(`b`).Type(), vf.String(`c`).Type()))
-	require.NotAssignable(t, tp, tf.Tuple(vf.String(`a`).Type(), typ.String))
+	require.Assignable(t, tp, tf.Tuple(vf.String(`a`), vf.String(`b`)))
+	require.NotAssignable(t, tp, tf.Tuple(vf.String(`a`), vf.String(`b`), vf.String(`c`)))
+	require.NotAssignable(t, tp, tf.Tuple(vf.String(`a`), typ.String))
 
 	require.Equal(t, 2, tp.Min())
 	require.Equal(t, 2, tp.Max())
@@ -180,10 +173,10 @@ func TestExactArrayType(t *testing.T) {
 
 	require.NotAssignable(t, tp, tf.AnyOf(tf.Array(tf.String(5, 5)), tf.Array(tf.String(8, 8))))
 	require.Equal(t, tp, tp)
-	require.Equal(t, vf.Values(vf.String(`a`).Type(), vf.String(`b`).Type()), tp.ElementTypes())
+	require.Equal(t, vf.Values(vf.String(`a`), vf.String(`b`)), tp.ElementTypes())
 	require.NotEqual(t, tp, typ.Array)
 
-	require.Instance(t, tp.Type(), tp)
+	require.Assignable(t, tp, tp)
 	require.Equal(t, `{"a","b"}`, tp.String())
 
 	require.NotEqual(t, 0, tp.HashCode())
@@ -191,50 +184,48 @@ func TestExactArrayType(t *testing.T) {
 }
 
 func TestArrayElementType_singleElement(t *testing.T) {
-	v := vf.Strings(`hello`)
-	at := v.Type()
-	et := at.(dgo.ArrayType).ElementType()
+	at := vf.Strings(`hello`).(dgo.ArrayType)
+	et := at.ElementType()
 	require.Assignable(t, at, at)
 	tp := tf.Array(typ.String)
 	require.Assignable(t, tp, at)
 	require.NotAssignable(t, at, tp)
-	require.Assignable(t, et, vf.String(`hello`).Type())
-	require.NotAssignable(t, et, vf.String(`hey`).Type())
-	require.Instance(t, et, `hello`)
-	require.NotInstance(t, et, `world`)
-	require.Equal(t, et, vf.Strings(`hello`).Type().(dgo.ArrayType).ElementType())
+	require.Assignable(t, et, vf.String(`hello`))
+	require.NotAssignable(t, et, vf.String(`hey`))
+	require.Assignable(t, et, `hello`)
+	require.NotAssignable(t, et, `world`)
+	require.Equal(t, et, vf.Strings(`hello`).(dgo.ArrayType).ElementType())
 	//	require.Equal(t, et.(dgo.ExactType).Value(), vf.Strings(`hello`))
-	require.NotEqual(t, et, vf.Strings(`hello`).Type().(dgo.ArrayType))
+	require.NotEqual(t, et, vf.Strings(`hello`).(dgo.ArrayType))
 
 	require.NotEqual(t, 0, et.HashCode())
 	require.Equal(t, et.HashCode(), et.HashCode())
 }
 
 func TestArrayElementType_multipleElements(t *testing.T) {
-	v := vf.Strings(`hello`, `world`)
-	at := v.Type()
+	at := vf.Strings(`hello`, `world`).(dgo.ArrayType)
 	et := at.(dgo.ArrayType).ElementType()
 	require.Assignable(t, at, at)
 	tp := tf.Array(typ.String)
 	require.Assignable(t, tp, at)
 	require.NotAssignable(t, at, tp)
-	require.NotAssignable(t, et, vf.String(`hello`).Type())
-	require.NotAssignable(t, et, vf.String(`world`).Type())
-	require.NotAssignable(t, vf.String(`hello`).Type(), et)
-	require.NotAssignable(t, vf.String(`world`).Type(), et)
-	require.Assignable(t, vf.Strings(`hello`, `world`).Type(), at)
-	require.Assignable(t, vf.Strings(`hello`, `world`).Type().(dgo.ArrayType).ElementType(), et)
-	require.Assignable(t, vf.Strings(`world`, `hello`).Type().(dgo.ArrayType).ElementType(), et)
+	require.NotAssignable(t, et, vf.String(`hello`))
+	require.NotAssignable(t, et, vf.String(`world`))
+	require.NotAssignable(t, vf.String(`hello`), et)
+	require.NotAssignable(t, vf.String(`world`), et)
+	require.Assignable(t, vf.Strings(`hello`, `world`), at)
+	require.Assignable(t, vf.Strings(`hello`, `world`).(dgo.ArrayType).ElementType(), et)
+	require.Assignable(t, vf.Strings(`world`, `hello`).(dgo.ArrayType).ElementType(), et)
 
 	require.Assignable(t, tf.Array(2, 2), at)
 	require.Assignable(t, tf.Array(et, 2, 2), at)
 
 	et.(dgo.TernaryType).Operands().Each(func(v dgo.Value) {
 		t.Helper()
-		require.Instance(t, typ.String, v)
+		require.Assignable(t, typ.String, v)
 	})
 
-	require.Instance(t, et.Type(), et)
+	require.Assignable(t, et, et)
 	require.Equal(t, `"hello"&"world"`, et.String())
 }
 
@@ -248,7 +239,7 @@ func TestTupleType(t *testing.T) {
 
 	tt = tf.Tuple(typ.String, typ.Any, typ.Float)
 	require.Assignable(t, tt, tf.Tuple(typ.String, typ.Integer, typ.Float))
-	require.Assignable(t, tt, vf.Values(`one`, 2, 3.0).Type())
+	require.Assignable(t, tt, vf.Values(`one`, 2, 3.0))
 	require.Equal(t, 3, tt.Min())
 	require.Equal(t, 3, tt.Max())
 	require.False(t, tt.Unbounded())
@@ -264,9 +255,9 @@ func TestTupleType(t *testing.T) {
 	require.Assignable(t, typ.Array, tt)
 	require.Assignable(t, tf.Array(0, 3), tt)
 
-	require.Assignable(t, tt, vf.Values(`one`, 2, 3.0).Type())
-	require.NotAssignable(t, tt, vf.Values(`one`, 2, 3.0, `four`).Type())
-	require.NotAssignable(t, tt, vf.Values(`one`, 2, 3).Type())
+	require.Assignable(t, tt, vf.Values(`one`, 2, 3.0))
+	require.NotAssignable(t, tt, vf.Values(`one`, 2, 3.0, `four`))
+	require.NotAssignable(t, tt, vf.Values(`one`, 2, 3))
 	require.NotAssignable(t, tt, typ.Array)
 	require.NotAssignable(t, tt, typ.Tuple)
 	require.NotEqual(t, tt, typ.String)
@@ -283,16 +274,16 @@ func TestTupleType(t *testing.T) {
 	require.NotAssignable(t, tf.Array(tf.AnyOf(typ.String, typ.Integer, typ.Float), 0, 2), tt)
 
 	okv := vf.Values(`hello`, 1, 2.0)
-	require.Instance(t, tt, okv)
-	require.NotInstance(t, tt, okv.Get(0))
-	require.Assignable(t, tt, okv.Type())
+	require.Assignable(t, tt, okv)
+	require.NotAssignable(t, tt, okv.Get(0))
+	require.Assignable(t, tt, okv)
 	require.Assignable(t, typ.Array, tt)
 
 	okv = vf.Values(`hello`, 1, 2)
-	require.NotInstance(t, tt, okv)
+	require.NotAssignable(t, tt, okv)
 
 	okv = vf.Values(`hello`, 1, 2.0, true)
-	require.NotInstance(t, tt, okv)
+	require.NotAssignable(t, tt, okv)
 
 	okm := vf.MutableValues(`world`, 2, 3.0)
 	okm.SetType(tt)
@@ -315,7 +306,7 @@ func TestTupleType(t *testing.T) {
 	require.Equal(t, vf.Values(typ.String, typ.Integer), tt.ElementTypes())
 	require.Equal(t, typ.Array, typ.Generic(tt))
 
-	require.Instance(t, tt.Type(), tt)
+	require.Assignable(t, tt, tt)
 	require.Equal(t, `{string,int}`, tt.String())
 
 	require.NotEqual(t, 0, tt.HashCode())
@@ -325,7 +316,7 @@ func TestTupleType(t *testing.T) {
 	require.Equal(t, tf.Array(typ.String), typ.Generic(tt))
 	require.Equal(t, vf.Values(typ.String, typ.String), typ.ExactValue(tt))
 
-	te := tf.Tuple(vf.String(`a`).Type(), vf.String(`b`).Type())
+	te := tf.Tuple(vf.String(`a`), vf.String(`b`))
 	require.Assignable(t, tt, te)
 	require.NotAssignable(t, te, tt)
 	require.Equal(t, tf.Array(typ.String), typ.Generic(te))
@@ -333,30 +324,30 @@ func TestTupleType(t *testing.T) {
 }
 
 func TestTupleType_selfReference(t *testing.T) {
-	tp := tf.ParseType(`x={string,x}`).(dgo.ArrayType)
+	tp := tf.Parse(`x={string,x}`).(dgo.ArrayType)
 	d := vf.MutableValues()
 	d.Add(`hello`)
 	d.Add(d)
-	require.Instance(t, tp, d)
+	require.Assignable(t, tp, d)
 
-	t2 := tf.ParseType(`x={string,{string,x}}`)
+	t2 := tf.Parse(`x={string,{string,x}}`)
 	require.Assignable(t, tp, t2)
 
 	require.Equal(t, `{string,<recursive self reference to tuple type>}`, tp.String())
 }
 
 func TestVariadicTupleType(t *testing.T) {
-	tt := tf.ParseType(`{string,...string}`).(dgo.TupleType)
-	require.Instance(t, tt, vf.Values(`one`))
-	require.Instance(t, tt, vf.Values(`one`, `two`))
-	require.NotInstance(t, tt, vf.Values(`one`, 2))
-	require.NotInstance(t, tt, vf.Values(1))
+	tt := tf.Parse(`{string,...string}`).(dgo.TupleType)
+	require.Assignable(t, tt, vf.Values(`one`))
+	require.Assignable(t, tt, vf.Values(`one`, `two`))
+	require.NotAssignable(t, tt, vf.Values(`one`, 2))
+	require.NotAssignable(t, tt, vf.Values(1))
 
 	tt = tf.VariadicTuple(typ.String, typ.String)
-	require.NotInstance(t, tt, vf.Values())
-	require.Instance(t, tt, vf.Values(`one`))
-	require.Instance(t, tt, vf.Values(`one`, `two`))
-	require.Instance(t, tt, vf.Values(`one`, `two`, `three`))
+	require.NotAssignable(t, tt, vf.Values())
+	require.Assignable(t, tt, vf.Values(`one`))
+	require.Assignable(t, tt, vf.Values(`one`, `two`))
+	require.Assignable(t, tt, vf.Values(`one`, `two`, `three`))
 	require.True(t, tt.Unbounded())
 	require.Equal(t, 1, tt.Min())
 	require.Equal(t, math.MaxInt64, tt.Max())
@@ -475,11 +466,11 @@ func TestArray_Set(t *testing.T) {
 
 func TestArray_SetType(t *testing.T) {
 	a := vf.MutableValues(1, 2.0, `three`)
-	adt := a.Type()
+	adt := a
 
 	at := tf.Array(tf.AnyOf(typ.Integer, typ.Float, typ.String))
 	a.SetType(at)
-	require.Same(t, at, a.Type())
+	require.Same(t, at, a)
 
 	require.Panic(t, func() { a.SetType(`[](float|string)`) },
 		`cannot be assigned`)
@@ -491,19 +482,19 @@ func TestArray_SetType(t *testing.T) {
 		`does not evaluate to an array type`)
 
 	a.SetType(nil)
-	require.Equal(t, adt, a.Type())
+	require.Equal(t, adt, a)
 
 	a.Freeze()
 	require.Panic(t, func() { a.SetType(at) }, `SetType .* frozen`)
 }
 
 func TestArray_selfReference(t *testing.T) {
-	tp := tf.ParseType(`x=[](string|x)`).(dgo.ArrayType)
+	tp := tf.Parse(`x=[](string|x)`).(dgo.ArrayType)
 	d := vf.MutableValues(tp, `hello`)
 	d.Add(d)
-	require.Instance(t, tp, d)
+	require.Assignable(t, tp, d)
 
-	t2 := tf.ParseType(`x=[](string|[](string|x))`)
+	t2 := tf.Parse(`x=[](string|[](string|x))`)
 	require.Assignable(t, tp, t2)
 }
 
@@ -880,7 +871,7 @@ func TestArray_MapTo(t *testing.T) {
 		return int64(e.String()[0])
 	})
 
-	require.Equal(t, at, b.Type())
+	require.Equal(t, at, b)
 	require.Equal(t, vf.Integers(97, 98, 99), b)
 
 	require.Panic(t, func() {

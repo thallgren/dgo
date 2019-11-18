@@ -29,7 +29,6 @@ type (
 	// that the name must contain no '/' characters since they separate the name from its namespace.
 	// A load involving a nested name must use the Load method.
 	Loader interface {
-		Value
 		Keyed
 
 		// AbsoluteName returns the absolute name of this loader, i.e. the absolute name of the parent

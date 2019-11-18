@@ -25,17 +25,28 @@ func Native(rv reflect.Value) dgo.Native {
 	return &nv
 }
 
-func (t *nativeType) Assignable(other dgo.Type) bool {
-	if ot, ok := other.(*nativeType); ok {
-		if t.rt == nil {
-			return true
+func (t *nativeType) Assignable(other interface{}) bool {
+	if _, ok := other.(dgo.Value); ok {
+		var ot *nativeType
+		if ot, ok = other.(*nativeType); ok {
+			if t.rt == nil {
+				return true
+			}
+			if ot.rt == nil {
+				return false
+			}
+			return ot.rt.AssignableTo(t.rt)
 		}
-		if ot.rt == nil {
-			return false
+		var ov *native
+		if ov, ok = other.(*native); ok {
+			if t.rt == nil {
+				return true
+			}
+			return ov.ReflectType().AssignableTo(t.rt)
 		}
-		return ot.rt.AssignableTo(t.rt)
+		return CheckAssignableTo(nil, other, t)
 	}
-	return CheckAssignableTo(nil, other, t)
+	return reflect.TypeOf(other).AssignableTo(t.rt)
 }
 
 func (t *nativeType) Equals(other interface{}) bool {
@@ -53,22 +64,8 @@ func (t *nativeType) ReflectType() reflect.Type {
 	return t.rt
 }
 
-func (t *nativeType) Type() dgo.Type {
-	return &metaType{t}
-}
-
 func (t *nativeType) TypeIdentifier() dgo.TypeIdentifier {
 	return dgo.TiNative
-}
-
-func (t *nativeType) Instance(value interface{}) bool {
-	if ov, ok := toReflected(value); ok {
-		if t.rt == nil {
-			return true
-		}
-		return ov.Type().AssignableTo(t.rt)
-	}
-	return false
 }
 
 func (t *nativeType) String() string {
@@ -77,6 +74,10 @@ func (t *nativeType) String() string {
 
 func (t *nativeType) GoType() reflect.Type {
 	return t.rt
+}
+
+func (v *native) Assignable(other interface{}) bool {
+	return v.Equals(other) || CheckAssignableTo(nil, other, v)
 }
 
 func (v *native) Equals(other interface{}) bool {
@@ -105,6 +106,14 @@ func (v *native) FrozenCopy() dgo.Value {
 	panic(fmt.Errorf(`native value cannot be frozen`))
 }
 
+func (v *native) GoType() reflect.Type {
+	return v.ReflectType()
+}
+
+func (v *native) GoValue() interface{} {
+	return (*reflect.Value)(v).Interface()
+}
+
 func (v *native) HashCode() int {
 	rv := (*reflect.Value)(v)
 	switch rv.Kind() {
@@ -124,15 +133,6 @@ func (v *native) HashCode() int {
 	return 1234
 }
 
-func structHash(rv *reflect.Value) int {
-	n := rv.NumField()
-	h := 1
-	for i := 0; i < n; i++ {
-		h = h*31 + ValueFromReflected(rv.Field(i)).HashCode()
-	}
-	return h
-}
-
 func (v *native) ReflectTo(value reflect.Value) {
 	vr := (*reflect.Value)(v)
 	if value.Kind() == reflect.Ptr {
@@ -142,6 +142,10 @@ func (v *native) ReflectTo(value reflect.Value) {
 	} else {
 		value.Set(*vr)
 	}
+}
+
+func (v *native) ReflectType() reflect.Type {
+	return (*reflect.Value)(v).Type()
 }
 
 func (v *native) String() string {
@@ -154,12 +158,17 @@ func (v *native) String() string {
 	return rv.String()
 }
 
-func (v *native) Type() dgo.Type {
-	return &nativeType{(*reflect.Value)(v).Type()}
+func (v *native) TypeIdentifier() dgo.TypeIdentifier {
+	return dgo.TiNativeExact
 }
 
-func (v *native) GoValue() interface{} {
-	return (*reflect.Value)(v).Interface()
+func structHash(rv *reflect.Value) int {
+	n := rv.NumField()
+	h := 1
+	for i := 0; i < n; i++ {
+		h = h*31 + ValueFromReflected(rv.Field(i)).HashCode()
+	}
+	return h
 }
 
 func toReflected(value interface{}) (reflect.Value, bool) {

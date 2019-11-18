@@ -68,9 +68,22 @@ func SizedBinaryType(min, max int) dgo.BinaryType {
 	return &binaryType{min: min, max: max}
 }
 
-func (t *binaryType) Assignable(other dgo.Type) bool {
-	if ot, ok := other.(*binaryType); ok {
-		return t.min <= ot.min && t.max >= ot.max
+func (t *binaryType) Assignable(other interface{}) bool {
+	switch other := other.(type) {
+	case *binaryType:
+		return t.min <= other.min && t.max >= other.max
+	case *binary:
+		l := len(other.bytes)
+		return t.min <= l && l <= t.max
+	case []byte:
+		l := len(other)
+		return t.min <= l && l <= t.max
+	default:
+		return CheckAssignableTo(nil, other, t)
+	}
+
+	if ot, ok := other.(dgo.BinaryType); ok {
+		return t.min <= ot.Min() && t.max >= ot.Max()
 	}
 	return CheckAssignableTo(nil, other, t)
 }
@@ -91,16 +104,6 @@ func (t *binaryType) HashCode() int {
 		h = h*31 + t.max
 	}
 	return h
-}
-
-func (t *binaryType) Instance(value interface{}) bool {
-	if ov, ok := value.(*binary); ok {
-		return t.IsInstance(ov.bytes)
-	}
-	if ov, ok := value.([]byte); ok {
-		return t.IsInstance(ov)
-	}
-	return false
 }
 
 func (t *binaryType) IsInstance(v []byte) bool {
@@ -130,10 +133,6 @@ func (t *binaryType) String() string {
 	return TypeString(t)
 }
 
-func (t *binaryType) Type() dgo.Type {
-	return &metaType{t}
-}
-
 func (t *binaryType) TypeIdentifier() dgo.TypeIdentifier {
 	return dgo.TiBinary
 }
@@ -144,7 +143,7 @@ func (t *binaryType) Unbounded() bool {
 
 var encType = EnumType([]string{`%B`, `%b`, `%u`, `%s`, `%r`})
 
-func newBinary(t dgo.Type, arg dgo.Value) (b dgo.Value) {
+func newBinary(t dgo.Value, arg dgo.Value) (b dgo.Value) {
 	enc := `%B`
 	if args, ok := arg.(dgo.Arguments); ok {
 		args.AssertSize(`binary`, 1, 2)
@@ -162,7 +161,7 @@ func newBinary(t dgo.Type, arg dgo.Value) (b dgo.Value) {
 		bs := make([]byte, arg.Len())
 		bt := primitivePTypes[reflect.Uint8]
 		arg.EachWithIndex(func(v dgo.Value, i int) {
-			if !bt.Instance(v) {
+			if !bt.Assignable(v) {
 				panic(IllegalAssignment(bt, v))
 			}
 			bs[i] = byte(v.(intVal))
@@ -173,7 +172,7 @@ func newBinary(t dgo.Type, arg dgo.Value) (b dgo.Value) {
 	default:
 		panic(illegalArgument(`binary`, `binary, string, or array`, []interface{}{arg}, 0))
 	}
-	if !t.Instance(b) {
+	if !t.Assignable(b) {
 		panic(IllegalAssignment(t, b))
 	}
 	return
@@ -236,6 +235,17 @@ func BinaryFromData(data io.Reader) dgo.Binary {
 		panic(err)
 	}
 	return &binary{bytes: bs, frozen: true}
+}
+
+func (v *binary) Assignable(other interface{}) bool {
+	switch other := other.(type) {
+	case *binary:
+		return bytes.Equal(v.bytes, other.bytes)
+	case []byte:
+		return bytes.Equal(v.bytes, other)
+	default:
+		return CheckAssignableTo(nil, other, v)
+	}
 }
 
 func (v *binary) Copy(frozen bool) dgo.Binary {
@@ -333,6 +343,22 @@ func (v *binary) HashCode() int {
 	return bytesHash(v.bytes)
 }
 
+func (v *binary) IsInstance(bs []byte) bool {
+	return bytes.Equal(v.bytes, bs)
+}
+
+func (v *binary) Max() int {
+	return len(v.bytes)
+}
+
+func (v *binary) Min() int {
+	return len(v.bytes)
+}
+
+func (v *binary) New(arg dgo.Value) dgo.Value {
+	return newBinary(v, arg)
+}
+
 func (v *binary) ReflectTo(value reflect.Value) {
 	switch value.Kind() {
 	case reflect.Ptr:
@@ -350,9 +376,16 @@ func (v *binary) String() string {
 	return base64.StdEncoding.Strict().EncodeToString(v.bytes)
 }
 
-func (v *binary) Type() dgo.Type {
-	l := len(v.bytes)
-	return &binaryType{l, l}
+func (v *binary) ReflectType() reflect.Type {
+	return reflectBinaryType
+}
+
+func (v *binary) TypeIdentifier() dgo.TypeIdentifier {
+	return dgo.TiBinaryExact
+}
+
+func (v *binary) Unbounded() bool {
+	return false
 }
 
 func bytesHash(s []byte) int {
